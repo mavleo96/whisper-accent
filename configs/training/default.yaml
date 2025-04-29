@@ -1,0 +1,6 @@
+max_epochs: 100
+early_stopping_patience: 10
+gradient_clip_val: 1.0
+precision: 32
+accelerator: "auto"
+devices: "auto" 
