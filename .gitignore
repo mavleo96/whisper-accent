@@ -190,5 +190,8 @@ cython_debug/
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
 
+# Logs
+logs/
+
 # Data
 data/*
