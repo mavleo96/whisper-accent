@@ -4,8 +4,6 @@ from datasets import Audio, load_dataset
 from torch.utils.data import DataLoader
 from transformers import WhisperProcessor
 
-from src.data.utils import preprocess_labels
-
 
 class EdaccDataModule(L.LightningDataModule):
     def __init__(self, model_name, batch_size, num_workers, cache_dir):
@@ -14,6 +12,7 @@ class EdaccDataModule(L.LightningDataModule):
         self.num_workers = num_workers
         self.cache_dir = cache_dir
         self.processor = WhisperProcessor.from_pretrained(model_name)
+        self.max_length = 448
 
     def prepare_data(self):
         load_dataset(
@@ -24,10 +23,10 @@ class EdaccDataModule(L.LightningDataModule):
         # Note: edacc has no train split
         val_dataset = load_dataset(
             "edinburghcstr/edacc", split="validation", cache_dir=self.cache_dir
-        ).select(range(100))
+        )
         test_dataset = load_dataset(
             "edinburghcstr/edacc", split="test", cache_dir=self.cache_dir
-        ).select(range(100))
+        )
 
         val_dataset = val_dataset.cast_column("audio", Audio(sampling_rate=16000))
         test_dataset = test_dataset.cast_column("audio", Audio(sampling_rate=16000))
@@ -59,8 +58,8 @@ class EdaccDataModule(L.LightningDataModule):
 
     def _preprocess(self, batch):
         # TODO: need to extract and preprocess accent labels
-        audio_arrays = [item["array"] for item in batch["audio"]]
-        texts = batch["text"]
+        audio_arrays = [i["array"] for i in batch["audio"]]
+        texts = [self.processor.tokenizer.normalize(i) for i in batch["text"]]
 
         # Process audio features in batch
         input_values = self.processor.feature_extractor(
@@ -72,9 +71,10 @@ class EdaccDataModule(L.LightningDataModule):
 
         # Process text labels in batch
         label_values = self.processor.tokenizer(
-            [preprocess_labels(text) for text in texts],
+            texts,
             return_tensors="pt",
             return_attention_mask=True,
+            truncation=True,
             padding="max_length",
             max_length=448,
         )
@@ -89,10 +89,10 @@ class EdaccDataModule(L.LightningDataModule):
     def collate_fn(self, batch):
         # Note: torch.tensor used instead of torch.stack to handle weird behavior
         return {
-            "input_features": torch.tensor([item["input_features"] for item in batch]),
-            "attention_mask": torch.tensor([item["attention_mask"] for item in batch]),
-            "labels": torch.tensor([item["labels"] for item in batch]),
-            # "labels_attention_mask": torch.tensor([item["labels_attention_mask"] for item in batch]),
+            "input_features": torch.tensor([i["input_features"] for i in batch]),
+            "attention_mask": torch.tensor([i["attention_mask"] for i in batch]),
+            "labels": torch.tensor([i["labels"] for i in batch]),
+            # "labels_attention_mask": torch.tensor([i["labels_attention_mask"] for i in batch]),
         }
 
     def train_dataloader(self):
@@ -103,6 +103,7 @@ class EdaccDataModule(L.LightningDataModule):
             shuffle=True,
             pin_memory=True,
             collate_fn=self.collate_fn,
+            # persistent_workers=True,
         )
 
     def val_dataloader(self):
@@ -113,6 +114,7 @@ class EdaccDataModule(L.LightningDataModule):
             shuffle=False,
             pin_memory=True,
             collate_fn=self.collate_fn,
+            # persistent_workers=True,
         )
 
     def test_dataloader(self):
@@ -123,15 +125,16 @@ class EdaccDataModule(L.LightningDataModule):
             shuffle=False,
             pin_memory=True,
             collate_fn=self.collate_fn,
+            # persistent_workers=True,
         )
 
 
 if __name__ == "__main__":
     data_module = EdaccDataModule(
-        model_name="openai/whisper-small",
+        model_name="openai/whisper-base.en",
         batch_size=16,
         num_workers=4,
-        cache_dir="data",
+        cache_dir="/data/vijay/rice-bag/data",
     )
     data_module.setup("fit")
     print(len(data_module.train_dataset))
