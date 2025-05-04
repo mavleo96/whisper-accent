@@ -1,25 +1,48 @@
+from pathlib import Path
+
 import lightning as L
 import torch
-from datasets import Audio, load_dataset
+from datasets import Audio, Dataset, load_dataset
 from torch.utils.data import DataLoader
 from transformers import WhisperProcessor
 
+from src.constants import SAMPLING_RATE
+
 
 class EdaccDataModule(L.LightningDataModule):
-    def __init__(self, model_name, batch_size, num_workers, cache_dir):
+    def __init__(
+        self,
+        model_name,
+        batch_size,
+        preprocess_batch_size,
+        max_length,
+        num_workers,
+        cache_dir,
+        subset_mode=False,
+    ):
         super().__init__()
+        self.save_hyperparameters()
+
         self.batch_size = batch_size
+        self.preprocess_batch_size = preprocess_batch_size
         self.num_workers = num_workers
-        self.cache_dir = cache_dir
         self.processor = WhisperProcessor.from_pretrained(model_name)
-        self.max_length = 448
+        self.max_length = max_length
+        self.subset_mode = subset_mode
+
+        # Path to cache and prepared datasets
+        self.cache_dir = Path(cache_dir)
+        if not self.cache_dir.exists():
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.processed_dir = self.cache_dir / "processed"
+        if not self.processed_dir.exists():
+            self.processed_dir.mkdir(parents=True, exist_ok=True)
 
     def prepare_data(self):
         load_dataset(
             "edinburghcstr/edacc", cache_dir=self.cache_dir
         )  # Triggers download
 
-    def setup(self, stage):
         # Note: edacc has no train split
         val_dataset = load_dataset(
             "edinburghcstr/edacc", split="validation", cache_dir=self.cache_dir
@@ -27,27 +50,48 @@ class EdaccDataModule(L.LightningDataModule):
         test_dataset = load_dataset(
             "edinburghcstr/edacc", split="test", cache_dir=self.cache_dir
         )
+        if self.subset_mode:
+            # Note: for testing purposes
+            val_dataset = val_dataset.select(range(100))
+            test_dataset = test_dataset.select(range(100))
 
-        val_dataset = val_dataset.cast_column("audio", Audio(sampling_rate=16000))
-        test_dataset = test_dataset.cast_column("audio", Audio(sampling_rate=16000))
+        # Resample audio to SAMPLING_RATE
+        val_dataset = val_dataset.cast_column(
+            "audio", Audio(sampling_rate=SAMPLING_RATE)
+        )
+        test_dataset = test_dataset.cast_column(
+            "audio", Audio(sampling_rate=SAMPLING_RATE)
+        )
 
-        # Process datasets in batches
-        # TODO: investigate weird behavior, tensors automatically convert to lists
         val_dataset = val_dataset.map(
             self._preprocess,
             batched=True,
-            batch_size=32,
+            batch_size=self.preprocess_batch_size,
             num_proc=self.num_workers,
             remove_columns=val_dataset.column_names,
+            desc="Processing validation dataset",
         )
         test_dataset = test_dataset.map(
             self._preprocess,
             batched=True,
-            batch_size=32,
+            batch_size=self.preprocess_batch_size,
             num_proc=self.num_workers,
             remove_columns=test_dataset.column_names,
+            desc="Processing test dataset",
         )
 
+        val_dataset.save_to_disk(self.processed_dir / "val_dataset")
+        test_dataset.save_to_disk(self.processed_dir / "test_dataset")
+
+    def setup(self, stage):
+        val_dataset = Dataset.load_from_disk(self.processed_dir / "val_dataset")
+        test_dataset = Dataset.load_from_disk(self.processed_dir / "test_dataset")
+
+        val_dataset.set_format(type="torch", columns=val_dataset.column_names)
+        test_dataset.set_format(type="torch", columns=test_dataset.column_names)
+
+        # Set datasets
+        # TODO: predict on test set
         if stage == "fit":
             self.train_dataset = val_dataset
             self.val_dataset = test_dataset
@@ -61,41 +105,40 @@ class EdaccDataModule(L.LightningDataModule):
         audio_arrays = [i["array"] for i in batch["audio"]]
         texts = [self.processor.tokenizer.normalize(i) for i in batch["text"]]
 
-        # Process audio features in batch
         input_values = self.processor.feature_extractor(
             audio_arrays,
-            sampling_rate=16000,
+            sampling_rate=SAMPLING_RATE,
             return_tensors="pt",
             return_attention_mask=True,
         )
-
-        # Process text labels in batch
         label_values = self.processor.tokenizer(
             texts,
             return_tensors="pt",
             return_attention_mask=True,
             truncation=True,
             padding="max_length",
-            max_length=448,
+            max_length=self.max_length,
         )
 
         return {
             "input_features": input_values.input_features,
             "attention_mask": input_values.attention_mask,
             "labels": label_values.input_ids,
-            "labels_attention_mask": label_values.attention_mask,
+            "decoder_attention_mask": label_values.attention_mask,
         }
 
     def collate_fn(self, batch):
-        # Note: torch.tensor used instead of torch.stack to handle weird behavior
         return {
-            "input_features": torch.tensor([i["input_features"] for i in batch]),
-            "attention_mask": torch.tensor([i["attention_mask"] for i in batch]),
-            "labels": torch.tensor([i["labels"] for i in batch]),
-            # "labels_attention_mask": torch.tensor([i["labels_attention_mask"] for i in batch]),
+            "input_features": torch.stack([i["input_features"] for i in batch]),
+            "attention_mask": torch.stack([i["attention_mask"] for i in batch]),
+            "labels": torch.stack([i["labels"] for i in batch]),
+            "decoder_attention_mask": torch.stack(
+                [i["decoder_attention_mask"] for i in batch]
+            ),
         }
 
     def train_dataloader(self):
+        # TODO: check if persistent workers are needed
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
@@ -133,9 +176,13 @@ if __name__ == "__main__":
     data_module = EdaccDataModule(
         model_name="openai/whisper-base.en",
         batch_size=16,
+        preprocess_batch_size=16,
+        max_length=448,
         num_workers=4,
         cache_dir="/data/vijay/rice-bag/data",
+        subset_mode=True,
     )
+    data_module.prepare_data()
     data_module.setup("fit")
     print(len(data_module.train_dataset))
     print(len(data_module.val_dataset))
@@ -144,8 +191,10 @@ if __name__ == "__main__":
 
     for batch in data_module.train_dataloader():
         print("train", {i: j.shape for i, j in batch.items()})
+        print("train", {i: j.dtype for i, j in batch.items()})
         break
 
     for batch in data_module.val_dataloader():
         print("val", {i: j.shape for i, j in batch.items()})
+        print("val", {i: j.dtype for i, j in batch.items()})
         break
