@@ -1,5 +1,6 @@
 import lightning as L
 import torch
+import torch.nn.functional as F
 from torchmetrics.text import WordErrorRate
 from transformers import WhisperForConditionalGeneration, WhisperProcessor
 
@@ -9,107 +10,109 @@ class BaseWhisperModel(L.LightningModule):
 
     def __init__(self, model_name="openai/whisper-base"):
         super().__init__()
+        self.save_hyperparameters()
 
         self.model = WhisperForConditionalGeneration.from_pretrained(model_name)
+        self.model = torch.compile(self.model)
         self.processor = WhisperProcessor.from_pretrained(model_name)
-        # TODO: check if this is the correct way to set the language and task
-        # https://github.com/huggingface/transformers/pull/28687
-        self.model.generation_config.language = "<|en|>"
-        self.model.generation_config.task = "transcribe"
-        self.forced_decoder_ids = self.processor.get_decoder_prompt_ids(
-            language="en",  # Force English language
-            task="transcribe",  # Keep it transcription (not translation)
-        )
+        # Reference Link: https://github.com/huggingface/transformers/pull/28687
+        if self.model.generation_config.is_multilingual:
+            self.model.generation_config.language = "<|en|>"
+            self.model.generation_config.task = "transcribe"
+
+        # TODO: check if this computes correctly
         self.wer = WordErrorRate()
 
-    def forward(self, input_features, attention_mask, labels):
-        return self.model(
-            input_features=input_features,
-            labels=labels,
-            attention_mask=attention_mask,
-        )
+    def forward(self, *args, **kwargs):
+        return self.model(*args, **kwargs)
 
     def training_step(self, batch, batch_idx):
-        input_features = batch["input_features"]
-        attention_mask = batch["attention_mask"]
-        labels = batch["labels"]
-
-        # Replace padding token id with -100 for label loss masking
-        labels[labels == self.processor.tokenizer.pad_token_id] = -100
-
-        outputs = self(
-            input_features=input_features,
-            attention_mask=attention_mask,
-            labels=labels,
+        outputs = self(**batch)
+        loss = F.cross_entropy(
+            outputs.logits.transpose(1, 2),
+            batch["labels"],
+            ignore_index=self.processor.tokenizer.pad_token_id,
         )
-        loss = outputs.loss
-        self.log("train_loss", loss)
+        self.log(
+            "train_loss",
+            loss,
+            sync_dist=True,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+        )
         return loss
 
     def validation_step(self, batch, batch_idx):
-        input_features = batch["input_features"]
-        attention_mask = batch["attention_mask"]
-        labels = batch["labels"]
-        labels[labels == self.processor.tokenizer.pad_token_id] = -100
-
-        outputs = self(
-            input_features=input_features,
-            attention_mask=attention_mask,
-            labels=labels,
+        outputs = self(**batch)
+        loss = F.cross_entropy(
+            outputs.logits.transpose(1, 2),
+            batch["labels"],
+            ignore_index=self.processor.tokenizer.pad_token_id,
         )
-        loss = outputs.loss
-        self.log("val_loss", loss, prog_bar=True)
+        self.log(
+            "val_loss", loss, sync_dist=True, on_step=True, on_epoch=True, prog_bar=True
+        )
 
-        # Generate predictions
         predicted_ids = self.model.generate(
-            input_features=input_features,
-            attention_mask=attention_mask,
-            forced_decoder_ids=self.forced_decoder_ids,
+            input_features=batch["input_features"],
+            attention_mask=batch["attention_mask"],
         )
         predicted_text = self.processor.batch_decode(
             predicted_ids, skip_special_tokens=True
         )
-        target_text = self.processor.batch_decode(labels, skip_special_tokens=True)
+        target_text = self.processor.batch_decode(
+            batch["labels"], skip_special_tokens=True
+        )
 
-        # Compute WER
         wer_score = self.wer(predicted_text, target_text)
-        self.log("val_wer", wer_score, prog_bar=True)
+        self.log(
+            "val_wer",
+            wer_score,
+            sync_dist=True,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
 
-        return loss
+        return {"val_loss": loss, "val_wer": wer_score}
 
     def test_step(self, batch, batch_idx):
-        input_features = batch["input_features"]
-        attention_mask = batch["attention_mask"]
-        labels = batch["labels"]
-        labels[labels == self.processor.tokenizer.pad_token_id] = -100
-
-        # Generate predictions
         predicted_ids = self.model.generate(
-            input_features=input_features,
-            attention_mask=attention_mask,
-            forced_decoder_ids=self.forced_decoder_ids,
+            input_features=batch["input_features"],
+            attention_mask=batch["attention_mask"],
         )
         predicted_text = self.processor.batch_decode(
             predicted_ids, skip_special_tokens=True
         )
-        target_text = self.processor.batch_decode(labels, skip_special_tokens=True)
+        target_text = self.processor.batch_decode(
+            batch["labels"], skip_special_tokens=True
+        )
 
-        # Compute WER
         wer_score = self.wer(predicted_text, target_text)
-        self.log("test_wer", wer_score, prog_bar=True)
+        self.log(
+            "test_wer",
+            wer_score,
+            sync_dist=True,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+        )
 
-        return wer_score
+        return {"test_wer": wer_score}
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=self.lr)
+        lr = 1e-4
+        return torch.optim.AdamW(self.parameters(), lr=lr)
 
 
 if __name__ == "__main__":
-    model = BaseWhisperModel()
+    model = BaseWhisperModel(model_name="openai/whisper-base.en")
     batch = {
         "input_features": torch.randn(16, 80, 3000),
-        "attention_mask": torch.randn(16, 3000),
-        "labels": torch.randint(0, 100, (16, 448)),
+        "attention_mask": torch.randint(0, 2, (16, 3000)),
+        "labels": torch.randint(0, 51865, (16, 448)),
+        "decoder_attention_mask": torch.randint(0, 2, (16, 448)),
     }
 
     outputs = model.test_step(batch, 0)
