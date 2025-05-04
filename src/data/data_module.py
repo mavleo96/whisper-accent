@@ -91,7 +91,6 @@ class EdaccDataModule(L.LightningDataModule):
         test_dataset.set_format(type="torch", columns=test_dataset.column_names)
 
         # Set datasets
-        # TODO: predict on test set
         if stage == "fit":
             self.train_dataset = val_dataset
             self.val_dataset = test_dataset

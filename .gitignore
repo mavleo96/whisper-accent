@@ -193,6 +193,7 @@ cython_debug/
 # Logs
 logs/
 outputs/
+multirun/
 
 # Data
 data/*

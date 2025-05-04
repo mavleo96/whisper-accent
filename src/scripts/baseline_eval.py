@@ -5,6 +5,7 @@ import lightning as L
 import torch
 from lightning.pytorch.loggers import TensorBoardLogger
 
+from src.callbacks.prediction_logger import PredictionLogger
 from src.data.data_module import EdaccDataModule
 from src.models.base_model import BaseWhisperModel
 
@@ -14,7 +15,9 @@ logger = logging.getLogger(__name__)
 torch.set_float32_matmul_precision("high")
 
 
-@hydra.main(config_path="../../configs", config_name="baseline_eval.yaml")
+@hydra.main(
+    config_path="../../configs", config_name="baseline_eval.yaml", version_base=None
+)
 def main(cfg):
     logger.info(f"Initializing model: {cfg.model.model_name}")
     model = BaseWhisperModel(**cfg.model)
@@ -36,6 +39,7 @@ def main(cfg):
         accelerator=cfg.trainer.accelerator,
         strategy=cfg.trainer.strategy,
         enable_progress_bar=True,
+        callbacks=[PredictionLogger()],
     )
 
     logger.info("Starting evaluation")
