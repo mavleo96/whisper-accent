@@ -192,6 +192,7 @@ cython_debug/
 
 # Logs
 logs/
+outputs/
 
 # Data
 data/*

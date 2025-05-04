@@ -1,0 +1,5 @@
+defaults:
+  - machine: local
+  - trainer: eval
+  - model: whisper
+  - data: edacc

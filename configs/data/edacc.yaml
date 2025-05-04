@@ -1,0 +1,8 @@
+model_name: ${model.model_name}
+max_length: 448
+
+batch_size: ${machine.batch_size}
+preprocess_batch_size: ${machine.preprocess_batch_size}
+num_workers: ${machine.num_workers}
+
+cache_dir: /data/vijay/rice-bag/data

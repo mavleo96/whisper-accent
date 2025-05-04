@@ -173,19 +173,17 @@ class EdaccDataModule(L.LightningDataModule):
 
 
 if __name__ == "__main__":
-    data_module = EdaccDataModule(
-        model_name="openai/whisper-base.en",
-        batch_size=16,
-        preprocess_batch_size=16,
-        max_length=448,
-        num_workers=4,
-        cache_dir="/data/vijay/rice-bag/data",
-        subset_mode=True,
-    )
+    from hydra import compose, initialize
+
+    with initialize(config_path="../../configs", version_base=None):
+        cfg = compose(config_name="baseline_eval.yaml")
+
+    data_module = EdaccDataModule(subset_mode=True, **cfg.data)
     data_module.prepare_data()
     data_module.setup("fit")
-    print(len(data_module.train_dataset))
-    print(len(data_module.val_dataset))
+
+    print("train length", len(data_module.train_dataset))
+    print("val length", len(data_module.val_dataset))
 
     print({i: torch.tensor(j).shape for i, j in data_module.train_dataset[0].items()})
 
