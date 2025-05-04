@@ -22,11 +22,31 @@ class BaseWhisperModel(L.LightningModule):
             self.model.generation_config.language = "<|en|>"
             self.model.generation_config.task = "transcribe"
 
-        # TODO: check if this computes correctly
-        self.wer = WordErrorRate()
+        # wer defined on cpu for multi-gpu compatibility
+        self.val_wer = WordErrorRate(dist_sync_on_step=True, compute_on_cpu=True)
+        self.test_wer = WordErrorRate(dist_sync_on_step=True, compute_on_cpu=True)
 
-    def forward(self, *args, **kwargs):
-        return self.model(*args, **kwargs)
+    def forward(
+        self, input_features, labels, attention_mask, decoder_attention_mask, **kwargs
+    ):
+        return self.model(
+            input_features,
+            attention_mask=attention_mask,
+            labels=labels,
+            decoder_attention_mask=decoder_attention_mask,
+        )
+
+    def generate(self, input_features, attention_mask, **kwargs):
+        predicted_ids = self.model.generate(
+            input_features, attention_mask=attention_mask
+        )
+        predicted_text = self.processor.batch_decode(
+            predicted_ids, skip_special_tokens=True
+        )
+        predicted_text = [
+            self.processor.tokenizer.normalize(text) for text in predicted_text
+        ]
+        return predicted_text
 
     def training_step(self, batch, batch_idx):
         outputs = self(**batch)
@@ -43,7 +63,7 @@ class BaseWhisperModel(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-        return loss
+        return {"loss": loss}
 
     def validation_step(self, batch, batch_idx):
         outputs = self(**batch)
@@ -56,18 +76,16 @@ class BaseWhisperModel(L.LightningModule):
             "val_loss", loss, sync_dist=True, on_step=True, on_epoch=True, prog_bar=True
         )
 
-        predicted_ids = self.model.generate(
-            input_features=batch["input_features"],
-            attention_mask=batch["attention_mask"],
-        )
-        predicted_text = self.processor.batch_decode(
-            predicted_ids, skip_special_tokens=True
-        )
+        predicted_text = self.generate(**batch)
         target_text = self.processor.batch_decode(
             batch["labels"], skip_special_tokens=True
         )
 
-        wer_score = self.wer(predicted_text, target_text)
+        self.val_wer.update(predicted_text, target_text)
+        return {"val_loss": loss}
+
+    def on_validation_epoch_end(self):
+        wer_score = self.val_wer.compute()
         self.log(
             "val_wer",
             wer_score,
@@ -76,22 +94,22 @@ class BaseWhisperModel(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-
-        return {"val_loss": loss, "val_wer": wer_score}
+        self.val_wer.reset()
 
     def test_step(self, batch, batch_idx):
-        predicted_ids = self.model.generate(
-            input_features=batch["input_features"],
-            attention_mask=batch["attention_mask"],
-        )
-        predicted_text = self.processor.batch_decode(
-            predicted_ids, skip_special_tokens=True
-        )
+        predicted_text = self.generate(**batch)
         target_text = self.processor.batch_decode(
             batch["labels"], skip_special_tokens=True
         )
 
-        wer_score = self.wer(predicted_text, target_text)
+        self.test_wer.update(predicted_text, target_text)
+        return {
+            "predictions": predicted_text,
+            "targets": target_text,
+        }
+
+    def on_test_epoch_end(self):
+        wer_score = self.test_wer.compute()
         self.log(
             "test_wer",
             wer_score,
@@ -100,8 +118,7 @@ class BaseWhisperModel(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-
-        return {"test_wer": wer_score}
+        self.test_wer.reset()
 
     def configure_optimizers(self):
         lr = self.optimizer_config.lr
