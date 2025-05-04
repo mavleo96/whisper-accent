@@ -1,6 +1,0 @@
-wandb:
-  project: "dl-project"
-  entity: null  # Set your wandb username/team
-  log_model: true
-tensorboard:
-  log_dir: "tensorboard" 

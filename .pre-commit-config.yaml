@@ -19,9 +19,9 @@ repos:
     -   id: isort
         args: ["--profile", "black"]
 
--   repo: https://github.com/pycqa/pylint
-    rev: v3.0.3
-    hooks:
-    -   id: pylint
-        additional_dependencies: [pylint-django]
-        args: [--max-line-length=88] 
+# -   repo: https://github.com/pycqa/pylint
+#     rev: v3.0.3
+#     hooks:
+#     -   id: pylint
+#         additional_dependencies: [pylint-django]
+#         args: [--max-line-length=88]

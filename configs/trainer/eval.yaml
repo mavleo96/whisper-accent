@@ -1,0 +1,10 @@
+# Hardware settings
+devices: 1
+precision: 32
+accelerator: "auto"
+strategy: "auto"
+
+# Logging
+logger:
+  - name: "tensorboard"
+    save_dir: "logs"
