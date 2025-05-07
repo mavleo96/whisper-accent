@@ -126,7 +126,7 @@ class EdaccDataModule(L.LightningDataModule):
             "attention_mask": input_values.attention_mask,
             "labels": label_values.input_ids,
             "decoder_attention_mask": label_values.attention_mask,
-            "accent_ids": accents_ids
+            "accent_id": accents_ids
         }
 
     def collate_fn(self, batch):
@@ -137,7 +137,7 @@ class EdaccDataModule(L.LightningDataModule):
             "decoder_attention_mask": torch.stack(
                 [i["decoder_attention_mask"] for i in batch]
             ),
-            "accent_ids": torch.stack([x["accent_ids"] for x in batch]),
+            "accent_id": torch.stack([x["accent_id"] for x in batch]),
         }
 
     def train_dataloader(self):

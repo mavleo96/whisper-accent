@@ -82,7 +82,11 @@ class BaseWhisperModel(L.LightningModule):
         )
 
         self.val_wer.update(predicted_text, target_text)
-        return {"val_loss": loss}
+        return {
+            "predictions": predicted_text,
+            "targets": target_text,
+            "val_loss": loss
+        }
 
     def on_validation_epoch_end(self):
         wer_score = self.val_wer.compute()
