@@ -58,7 +58,6 @@ class AccentAwareWhisperModel(L.LightningModule):
             prefix_len = len(prefix)
 
             new_labels[i, :prefix_len] = torch.tensor(prefix, device=labels.device)
-
             original_trimmed = original[3:]
             remaining = original_trimmed[original_trimmed != pad_id]
             max_copy_len = new_labels.size(1) - prefix_len
