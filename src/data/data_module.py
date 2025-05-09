@@ -6,7 +6,7 @@ from datasets import Audio, Dataset, load_dataset
 from torch.utils.data import DataLoader
 from transformers import WhisperProcessor
 
-from src.constants import SAMPLING_RATE
+from src.constants import SAMPLING_RATE, ACCENT_TO_ID_MAP
 
 
 class EdaccDataModule(L.LightningDataModule):
@@ -29,6 +29,7 @@ class EdaccDataModule(L.LightningDataModule):
         self.processor = WhisperProcessor.from_pretrained(model_name)
         self.max_length = max_length
         self.subset_mode = subset_mode
+        self.accent_to_id_map = ACCENT_TO_ID_MAP
 
         # Path to cache and prepared datasets
         self.cache_dir = Path(cache_dir)
@@ -103,6 +104,7 @@ class EdaccDataModule(L.LightningDataModule):
         # TODO: need to extract and preprocess accent labels
         audio_arrays = [i["array"] for i in batch["audio"]]
         texts = [self.processor.tokenizer.normalize(i) for i in batch["text"]]
+        accents_ids = torch.tensor([self.accent_to_id_map.get(accent, self.accent_to_id_map['Unknown']) for accent in batch["accent"]], dtype=torch.long)
 
         input_values = self.processor.feature_extractor(
             audio_arrays,
@@ -124,6 +126,7 @@ class EdaccDataModule(L.LightningDataModule):
             "attention_mask": input_values.attention_mask,
             "labels": label_values.input_ids,
             "decoder_attention_mask": label_values.attention_mask,
+            "accent_id": accents_ids
         }
 
     def collate_fn(self, batch):
@@ -134,6 +137,7 @@ class EdaccDataModule(L.LightningDataModule):
             "decoder_attention_mask": torch.stack(
                 [i["decoder_attention_mask"] for i in batch]
             ),
+            "accent_id": torch.stack([x["accent_id"] for x in batch]),
         }
 
     def train_dataloader(self):
