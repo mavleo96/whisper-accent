@@ -19,6 +19,7 @@ class EdaccDataModule(L.LightningDataModule):
         num_workers,
         cache_dir,
         subset_mode=False,
+        force_prepare=False,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -29,6 +30,7 @@ class EdaccDataModule(L.LightningDataModule):
         self.processor = WhisperProcessor.from_pretrained(model_name)
         self.max_length = max_length
         self.subset_mode = subset_mode
+        self.force_prepare = force_prepare
         self.accent_to_id_map = ACCENT_TO_ID_MAP
 
         # Path to cache and prepared datasets
@@ -39,7 +41,28 @@ class EdaccDataModule(L.LightningDataModule):
         if not self.processed_dir.exists():
             self.processed_dir.mkdir(parents=True, exist_ok=True)
 
+        model_dir_name = model_name.replace("/", "_").replace(".", "_")
+        model_dir = self.processed_dir / model_dir_name
+        self.subset_dir = model_dir / "subset"
+        self.full_dir = model_dir / "full"
+        if not self.subset_dir.exists():
+            self.subset_dir.mkdir(parents=True, exist_ok=True)
+        if not self.full_dir.exists():
+            self.full_dir.mkdir(parents=True, exist_ok=True)
+
     def prepare_data(self):
+        target_dir = self.subset_dir if self.subset_mode else self.full_dir
+        val_path = target_dir / "val_dataset" / "state.json"
+        test_path = target_dir / "test_dataset" / "state.json"
+        if not self.force_prepare and val_path.exists() and test_path.exists():
+            print(
+                f"Processed datasets already exist in {target_dir}, skipping preparation..."
+            )
+            return
+
+        if self.force_prepare:
+            print(f"Force prepare enabled, reprocessing datasets in {target_dir}...")
+
         load_dataset(
             "edinburghcstr/edacc", cache_dir=self.cache_dir
         )  # Triggers download
@@ -81,12 +104,14 @@ class EdaccDataModule(L.LightningDataModule):
             desc="Processing test dataset",
         )
 
-        val_dataset.save_to_disk(self.processed_dir / "val_dataset")
-        test_dataset.save_to_disk(self.processed_dir / "test_dataset")
+        val_dataset.save_to_disk(target_dir / "val_dataset")
+        test_dataset.save_to_disk(target_dir / "test_dataset")
 
     def setup(self, stage):
-        val_dataset = Dataset.load_from_disk(self.processed_dir / "val_dataset")
-        test_dataset = Dataset.load_from_disk(self.processed_dir / "test_dataset")
+        target_dir = self.subset_dir if self.subset_mode else self.full_dir
+
+        val_dataset = Dataset.load_from_disk(target_dir / "val_dataset")
+        test_dataset = Dataset.load_from_disk(target_dir / "test_dataset")
 
         val_dataset.set_format(type="torch", columns=val_dataset.column_names)
         test_dataset.set_format(type="torch", columns=test_dataset.column_names)
