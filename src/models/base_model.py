@@ -43,7 +43,7 @@ class BaseWhisperModel(L.LightningModule):
 
     def generate(self, input_features, attention_mask, **kwargs):
         predicted_ids = self.model.generate(
-            input_features, attention_mask=attention_mask, **kwargs
+            input_features, attention_mask=attention_mask
         )
         predicted_text = self.processor.batch_decode(
             predicted_ids, skip_special_tokens=True
