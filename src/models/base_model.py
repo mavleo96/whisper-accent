@@ -16,11 +16,11 @@ class BaseWhisperModel(L.LightningModule):
         self.processor = WhisperProcessor.from_pretrained(model_name)
         self.optimizer_config = optimizer_config
 
-        if torch.cuda.is_available():
-            try:
-                self.model = torch.compile(self.model)
-            except Exception:
-                pass
+        # if torch.cuda.is_available():
+        #     try:
+        #         self.model = torch.compile(self.model)
+        #     except Exception:
+        #         pass
 
         # Reference Link: https://github.com/huggingface/transformers/pull/28687
         if self.model.generation_config.is_multilingual:
@@ -43,7 +43,7 @@ class BaseWhisperModel(L.LightningModule):
 
     def generate(self, input_features, attention_mask, **kwargs):
         predicted_ids = self.model.generate(
-            input_features, attention_mask=attention_mask, **kwargs
+            input_features, attention_mask=attention_mask
         )
         predicted_text = self.processor.batch_decode(
             predicted_ids, skip_special_tokens=True
@@ -54,8 +54,11 @@ class BaseWhisperModel(L.LightningModule):
         return F.cross_entropy(
             logits.transpose(1, 2),
             labels,
-            ignore_index=self.processor.tokenizer.pad_token_id,
+            # ignore_index=self.processor.tokenizer.pad_token_id,
         )
+
+    def on_train_epoch_start(self):
+        self.model.train()
 
     def training_step(self, batch, batch_idx):
         outputs = self(**batch)
@@ -71,6 +74,9 @@ class BaseWhisperModel(L.LightningModule):
         )
         return {"loss": loss}
 
+    def on_validation_epoch_start(self):
+        self.model.eval()
+
     def validation_step(self, batch, batch_idx):
         outputs = self(**batch)
         loss = self.compute_loss(outputs.logits, batch["labels"])
@@ -83,30 +89,13 @@ class BaseWhisperModel(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-
-        predicted_text = self.generate(**batch)
-        target_text = self.processor.batch_decode(
-            batch["labels"], skip_special_tokens=True
-        )
-
-        self.val_wer.update(predicted_text, target_text)
-        return {
-            "val_loss": loss,
-            "predictions": predicted_text,
-            "targets": target_text,
-        }
+        return {"val_loss": loss}
 
     def on_validation_epoch_end(self):
-        wer_score = self.val_wer.compute()
-        self.log(
-            "val_wer",
-            wer_score,
-            sync_dist=True,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-        )
         self.val_wer.reset()
+
+    def on_test_epoch_start(self):
+        self.model.eval()
 
     def test_step(self, batch, batch_idx):
         predicted_text = self.generate(**batch)

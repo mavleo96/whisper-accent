@@ -61,21 +61,14 @@ def main(cfg):
     logger.info("Starting training")
     trainer.fit(model, data_module)
 
+    logger.info("Starting testing")
+    trainer.test(model, data_module)
+
     logger.info("Saving final model")
     save_dir = os.path.join(tensorboard_logger.log_dir, "final_model")
     os.makedirs(save_dir, exist_ok=True)
     checkpoint_path = os.path.join(save_dir, "final_model.ckpt")
     trainer.save_checkpoint(checkpoint_path)
-
-    # Upload model checkpoint as wandb artifact
-    logger.info("Uploading model checkpoint to wandb")
-    artifact = wandb_logger.experiment.Artifact(
-        name=f"model-{model_name}",
-        type="model",
-        description=f"Final model checkpoint for {model_name}",
-    )
-    artifact.add_file(checkpoint_path)
-    wandb_logger.experiment.log_artifact(artifact)
 
     # Close wandb run
     wandb_logger.experiment.finish()

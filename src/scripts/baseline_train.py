@@ -5,6 +5,7 @@ import hydra
 import lightning as L
 import torch
 from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
+from omegaconf import OmegaConf
 
 from src.callbacks import AccentWERCallback, PredictionSaver
 from src.data.data_module import EdaccDataModule
@@ -31,13 +32,23 @@ def main(cfg):
     model_name = cfg.model.model_name.split("/")[-1]
     tensorboard_logger = TensorBoardLogger(
         save_dir=cfg.trainer.logger[0].save_dir,
-        name=f"accent_token_train_{model_name}",
+        name=f"baseline_train_{model_name}",
     )
+
+    # Convert config to dict and handle optimizer config
+    config_dict = OmegaConf.to_container(cfg, resolve=True)
+    if "model" in config_dict and "optimizer_config" in config_dict["model"]:
+        opt_config = config_dict["model"]["optimizer_config"]
+        if hasattr(opt_config, "lr"):
+            config_dict["model"]["optimizer_config"] = {
+                "lr": float(opt_config.lr),
+                "weight_decay": float(opt_config.weight_decay),
+            }
 
     wandb_logger = WandbLogger(
         project="baseline-train",
         name=f"baseline_train_{model_name}",
-        config=cfg,
+        config=config_dict,
     )
 
     logger.info("Initializing trainer")
@@ -59,21 +70,14 @@ def main(cfg):
     logger.info("Starting training")
     trainer.fit(model, data_module)
 
+    logger.info("Starting testing")
+    trainer.test(model, data_module)
+
     logger.info("Saving final model")
     save_dir = os.path.join(tensorboard_logger.log_dir, "final_model")
     os.makedirs(save_dir, exist_ok=True)
     checkpoint_path = os.path.join(save_dir, "final_model.ckpt")
     trainer.save_checkpoint(checkpoint_path)
-
-    # Upload model checkpoint as wandb artifact
-    logger.info("Uploading model checkpoint to wandb")
-    artifact = wandb_logger.experiment.Artifact(
-        name=f"model-{model_name}",
-        type="model",
-        description=f"Final model checkpoint for {model_name}",
-    )
-    artifact.add_file(checkpoint_path)
-    wandb_logger.experiment.log_artifact(artifact)
 
     # Close wandb run
     wandb_logger.experiment.finish()
