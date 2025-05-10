@@ -13,9 +13,14 @@ class BaseWhisperModel(L.LightningModule):
         self.save_hyperparameters()
 
         self.model = WhisperForConditionalGeneration.from_pretrained(model_name)
-        self.model = torch.compile(self.model)
         self.processor = WhisperProcessor.from_pretrained(model_name)
         self.optimizer_config = optimizer_config
+
+        if torch.cuda.is_available():
+            try:
+                self.model = torch.compile(self.model)
+            except Exception:
+                pass
 
         # Reference Link: https://github.com/huggingface/transformers/pull/28687
         if self.model.generation_config.is_multilingual:
@@ -38,23 +43,24 @@ class BaseWhisperModel(L.LightningModule):
 
     def generate(self, input_features, attention_mask, **kwargs):
         predicted_ids = self.model.generate(
-            input_features, attention_mask=attention_mask
+            input_features, attention_mask=attention_mask, **kwargs
         )
         predicted_text = self.processor.batch_decode(
             predicted_ids, skip_special_tokens=True
         )
-        predicted_text = [
-            self.processor.tokenizer.normalize(text) for text in predicted_text
-        ]
-        return predicted_text
+        return [self.processor.tokenizer.normalize(text) for text in predicted_text]
+
+    def compute_loss(self, logits, labels):
+        return F.cross_entropy(
+            logits.transpose(1, 2),
+            labels,
+            ignore_index=self.processor.tokenizer.pad_token_id,
+        )
 
     def training_step(self, batch, batch_idx):
         outputs = self(**batch)
-        loss = F.cross_entropy(
-            outputs.logits.transpose(1, 2),
-            batch["labels"],
-            ignore_index=self.processor.tokenizer.pad_token_id,
-        )
+        loss = self.compute_loss(outputs.logits, batch["labels"])
+
         self.log(
             "train_loss",
             loss,
@@ -67,13 +73,15 @@ class BaseWhisperModel(L.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         outputs = self(**batch)
-        loss = F.cross_entropy(
-            outputs.logits.transpose(1, 2),
-            batch["labels"],
-            ignore_index=self.processor.tokenizer.pad_token_id,
-        )
+        loss = self.compute_loss(outputs.logits, batch["labels"])
+
         self.log(
-            "val_loss", loss, sync_dist=True, on_step=True, on_epoch=True, prog_bar=True
+            "val_loss",
+            loss,
+            sync_dist=True,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
         )
 
         predicted_text = self.generate(**batch)
@@ -83,9 +91,9 @@ class BaseWhisperModel(L.LightningModule):
 
         self.val_wer.update(predicted_text, target_text)
         return {
+            "val_loss": loss,
             "predictions": predicted_text,
             "targets": target_text,
-            "val_loss": loss
         }
 
     def on_validation_epoch_end(self):

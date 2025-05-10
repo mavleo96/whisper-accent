@@ -194,6 +194,8 @@ cython_debug/
 logs/
 outputs/
 multirun/
+checkpoints/
+wandb/
 
 # Data
 data/*

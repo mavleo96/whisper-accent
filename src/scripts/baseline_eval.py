@@ -5,8 +5,7 @@ import lightning as L
 import torch
 from lightning.pytorch.loggers import TensorBoardLogger
 
-from src.callbacks.prediction_logger import PredictionLogger
-from src.callbacks.accent_wer import AccentWERCallback
+from src.callbacks import AccentWERCallback, PredictionSaver
 from src.data.data_module import EdaccDataModule
 from src.models.base_model import BaseWhisperModel
 
@@ -40,7 +39,7 @@ def main(cfg):
         accelerator=cfg.trainer.accelerator,
         strategy=cfg.trainer.strategy,
         enable_progress_bar=True,
-        callbacks=[PredictionLogger(), AccentWERCallback()],
+        callbacks=[PredictionSaver(), AccentWERCallback()],
     )
 
     logger.info("Starting evaluation")
