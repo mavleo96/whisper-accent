@@ -9,7 +9,7 @@ from transformers import WhisperForConditionalGeneration, WhisperProcessor
 class AccentAwareWhisperModel(L.LightningModule):
     """Lightning module for whisper models for baseline model pipelines"""
 
-    def __init__(self, model_name, optimizer_config, num_accents=12):
+    def __init__(self, model_name, optimizer_config, num_accents=11):
         super().__init__()
         self.save_hyperparameters()
 
@@ -81,6 +81,12 @@ class AccentAwareWhisperModel(L.LightningModule):
     
 
     def predict_accent(self, input_features, attention_mask):
+        accent_only_logits = self.get_accent_logits(input_features, attention_mask)
+        predicted_accent_idx = accent_only_logits.argmax(dim=-1)
+
+        return predicted_accent_idx
+    
+    def get_accent_logits(self, input_features, attention_mask):
         batch_size = input_features.size(0)
         pad_id = self.processor.tokenizer.pad_token_id
 
@@ -106,28 +112,32 @@ class AccentAwareWhisperModel(L.LightningModule):
         # Logits of 4th position (where accent token would be predicted)
         accent_logits = outputs.logits[:, 3, :]
         accent_only_logits = accent_logits[:, self.accent_token_ids.to(accent_logits.device)]
-        predicted_accent_idx = accent_only_logits.argmax(dim=-1)
-
-        return predicted_accent_idx
-
+        return accent_only_logits
 
     def generate(self, input_features, attention_mask, **kwargs):    
         predicted_accent_ids = self.predict_accent(input_features, attention_mask)
         start_token = self.processor.tokenizer.encode("<|startoftranscript|>")[0]
         en_token = self.processor.tokenizer.encode("<|en|>")[0]
         transcribe_token = self.processor.tokenizer.encode("<|transcribe|>")[0]
+        pad_token = self.processor.tokenizer.pad_token_id
         
         # Create forced_decoder_ids for each sample
         batch_decoder_ids = []
-        for i in range(input_features.size(0)):
-            accent_token = self.processor.tokenizer.encode(f"<|accent_{predicted_accent_ids[i].item()}|>")[0]
-            decoder_ids = [start_token, en_token, transcribe_token, accent_token]
-            batch_decoder_ids.append(decoder_ids)
+        for acc_id in predicted_accent_ids.tolist():
+            accent_token = self.processor.tokenizer.encode(f"<|accent_{acc_id}|>")[0]
+            prefix = [start_token, en_token, transcribe_token, accent_token]
+            batch_decoder_ids.append(torch.tensor(prefix, device=input_features.device))
+
+
+        max_len = max(len(ids) for ids in batch_decoder_ids)
+        decoder_input_ids = torch.full((len(batch_decoder_ids), max_len), pad_token, device=input_features.device)
+        for i, ids in enumerate(batch_decoder_ids):
+            decoder_input_ids[i, :len(ids)] = ids
 
         pred_ids = self.model.generate(
             input_features=input_features,
             attention_mask=attention_mask,
-            forced_decoder_ids=batch_decoder_ids,
+            decoder_input_ids=decoder_input_ids,
             **kwargs
         )
                 
@@ -146,21 +156,35 @@ class AccentAwareWhisperModel(L.LightningModule):
             attention_mask=batch["attention_mask"],
             decoder_attention_mask=decoder_mask
         )
-        loss = F.cross_entropy(
+        transcription_loss = F.cross_entropy(
             outputs.logits.transpose(1, 2),
             decoder_input,
             ignore_index=self.processor.tokenizer.pad_token_id,
         )
+        accent_only_logits = self.get_accent_logits(batch["input_features"], batch["attention_mask"])
+        accent_loss = F.cross_entropy(accent_only_logits, batch["accent_id"])
+
+        alpha = 0.9  
+        beta = 0.1
+        combined_loss = alpha * transcription_loss + beta * accent_loss
+
 
         self.log(
             "train_loss",
-            loss,
+            combined_loss,
             sync_dist=True,
             on_step=True,
             on_epoch=True,
             prog_bar=True,
         )
-        return {"loss": loss}
+        self.log("train_transcription_loss", transcription_loss, sync_dist=True, on_epoch=True)
+        self.log("train_accent_loss", accent_loss, sync_dist=True, on_epoch=True)
+
+        predicted_accent_idx = accent_only_logits.argmax(dim=-1)
+        accent_accuracy = (predicted_accent_idx == batch["accent_id"]).float().mean()
+        self.log("train_accent_accuracy", accent_accuracy, sync_dist=True, on_epoch=True)
+
+        return {"loss": combined_loss}
 
     def validation_step(self, batch, batch_idx):
         decoder_input, decoder_mask = self.prepare_decoder_input(batch["labels"], batch["accent_id"], batch["decoder_attention_mask"])
@@ -170,14 +194,25 @@ class AccentAwareWhisperModel(L.LightningModule):
             attention_mask=batch["attention_mask"],
             decoder_attention_mask=decoder_mask
         )
-        loss = F.cross_entropy(
+        transcription_loss = F.cross_entropy(
             outputs.logits.transpose(1, 2),
             decoder_input,
             ignore_index=self.processor.tokenizer.pad_token_id,
         )
+
+        accent_only_logits = self.get_accent_logits(batch["input_features"], batch["attention_mask"])
+        accent_loss = F.cross_entropy(accent_only_logits, batch["accent_id"])
+
+        alpha = 0.9  
+        beta = 0.1  
+        combined_loss = alpha * transcription_loss + beta * accent_loss
+
+
         self.log(
-            "val_loss", loss, sync_dist=True, on_step=True, on_epoch=True, prog_bar=True
+            "val_loss", combined_loss, sync_dist=True, on_step=True, on_epoch=True, prog_bar=True
         )
+        self.log("val_transcription_loss", transcription_loss, sync_dist=True, on_epoch=True)
+        self.log("val_accent_loss", accent_loss, sync_dist=True, on_epoch=True)
 
         predicted_text, predicted_accent = self.generate(
             input_features=batch["input_features"],
@@ -190,7 +225,7 @@ class AccentAwareWhisperModel(L.LightningModule):
         # Update overall WER
         self.val_wer.update(predicted_text, target_text)
         self.val_acc.update(predicted_accent.cpu(), batch["accent_id"].cpu())
-        return {"val_loss": loss, "targets": target_text, "predictions": predicted_text, "target_accent": batch["accent_id"], "predicted_accent": predicted_accent}
+        return {"val_loss": combined_loss, "targets": target_text, "predictions": predicted_text, "target_accent": batch["accent_id"], "predicted_accent": predicted_accent}
 
     def on_validation_epoch_end(self):
         # Log overall WER
@@ -265,7 +300,7 @@ if __name__ == "__main__":
         "attention_mask": torch.randint(0, 2, (16, 3000)).to("cuda"),
         "labels": torch.randint(0, 51865, (16, 448)).to("cuda"),
         "decoder_attention_mask": torch.randint(0, 2, (16, 448)).to("cuda"),
-        "accent_id": torch.randint(0, 12, (16,)).to("cuda"),
+        "accent_id": torch.randint(0, 11, (16,)).to("cuda"),
     }
 
     outputs = model.test_step(batch, 0)
