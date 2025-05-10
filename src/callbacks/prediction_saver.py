@@ -1,13 +1,9 @@
-import logging
-
 import pandas as pd
 from lightning.pytorch.callbacks import Callback
-from lightning.pytorch.loggers import TensorBoardLogger
-
-logger = logging.getLogger(__name__)
+from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
 
 
-class PredictionLogger(Callback):
+class PredictionSaver(Callback):
     def __init__(self):
         super().__init__()
         self.all_predictions = []
@@ -28,6 +24,12 @@ class PredictionLogger(Callback):
         )
         text = f"<pre>{df.to_csv(index=False)}</pre>"
 
-        for tb_logger in trainer.loggers:
-            if isinstance(tb_logger, TensorBoardLogger):
-                tb_logger.experiment.add_text("predictions", text, global_step=0)
+        for logger in trainer.loggers:
+            if isinstance(logger, TensorBoardLogger):
+                logger.experiment.add_text("predictions", text, global_step=0)
+                df.to_csv(logger.log_dir + "/predictions.csv", index=False)
+            elif isinstance(logger, WandbLogger):
+                logger.log_table(
+                    key="predictions",
+                    dataframe=df,
+                )
