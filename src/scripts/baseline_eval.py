@@ -3,7 +3,8 @@ import logging
 import hydra
 import lightning as L
 import torch
-from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
+from omegaconf import OmegaConf
 
 from src.callbacks import AccentWERCallback, PredictionSaver
 from src.data.data_module import EdaccDataModule
@@ -31,9 +32,25 @@ def main(cfg):
         name=f"baseline_eval_{model_name}",
     )
 
+    # Convert config to dict for wandb
+    config_dict = OmegaConf.to_container(cfg, resolve=True)
+    if "model" in config_dict and "optimizer_config" in config_dict["model"]:
+        opt_config = config_dict["model"]["optimizer_config"]
+        if hasattr(opt_config, "lr"):
+            config_dict["model"]["optimizer_config"] = {
+                "lr": float(opt_config.lr),
+                "weight_decay": float(opt_config.weight_decay),
+            }
+
+    wandb_logger = WandbLogger(
+        project="baseline-eval",
+        name=f"baseline_eval_{model_name}",
+        config=config_dict,
+    )
+
     logger.info("Initializing trainer")
     trainer = L.Trainer(
-        logger=[tensorboard_logger],
+        logger=[tensorboard_logger, wandb_logger],
         devices=cfg.trainer.devices,
         precision=cfg.trainer.precision,
         accelerator=cfg.trainer.accelerator,
@@ -48,6 +65,10 @@ def main(cfg):
     logger.info("Evaluation results:")
     for metric, value in results[0].items():
         logger.info(f"{metric}: {value:.4f}")
+        wandb_logger.experiment.log({f"test/{metric}": value})
+
+    # Close wandb run
+    wandb_logger.experiment.finish()
 
 
 if __name__ == "__main__":

@@ -61,6 +61,9 @@ def main(cfg):
     logger.info("Starting training")
     trainer.fit(model, data_module)
 
+    logger.info("Starting testing")
+    trainer.test(model, data_module)
+
     logger.info("Saving final model")
     save_dir = os.path.join(tensorboard_logger.log_dir, "final_model")
     os.makedirs(save_dir, exist_ok=True)

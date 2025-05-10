@@ -62,15 +62,15 @@ class AccentWERCallback(Callback):
                     dataframe=df,
                 )
 
-    def on_validation_batch_end(
-        self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0
-    ):
-        self._process_batch(pl_module, outputs, batch)
+    # def on_validation_batch_end(
+    #     self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0
+    # ):
+    #     self._process_batch(pl_module, outputs, batch)
 
-    def on_validation_epoch_end(self, trainer, pl_module):
-        overall, rows = self._calculate_wer_metrics()
-        self._log_wer_metrics(trainer, overall, rows, "val_accent_wer")
-        self._reset_buffers()
+    # def on_validation_epoch_end(self, trainer, pl_module):
+    #     overall, rows = self._calculate_wer_metrics()
+    #     self._log_wer_metrics(trainer, overall, rows, "val_accent_wer")
+    #     self._reset_buffers()
 
     def on_test_batch_end(
         self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0

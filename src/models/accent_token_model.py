@@ -207,46 +207,9 @@ class AccentAwareWhisperModel(L.LightningModule):
         losses = self.compute_losses(outputs, batch)
         self.log_metrics("val", losses, losses["accent_logits"], batch)
 
-        predicted_text, predicted_accent = self.generate(
-            input_features=batch["input_features"],
-            attention_mask=batch["attention_mask"],
-        )
-        target_text = self.processor.batch_decode(
-            batch["labels"], skip_special_tokens=True
-        )
-
-        self.val_wer.update(predicted_text, target_text)
-        self.val_acc.update(predicted_accent.cpu(), batch["accent_id"].cpu())
-
-        return {
-            "val_loss": losses["combined_loss"],
-            "targets": target_text,
-            "predictions": predicted_text,
-            "target_accent": batch["accent_id"],
-            "predicted_accent": predicted_accent,
-        }
+        return {"val_loss": losses["combined_loss"]}
 
     def on_validation_epoch_end(self):
-        wer_score = self.val_wer.compute()
-        acc_score = self.val_acc.compute()
-
-        self.log(
-            "val_wer",
-            wer_score,
-            sync_dist=True,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-        )
-        self.log(
-            "val_acc",
-            acc_score,
-            sync_dist=True,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-        )
-
         self.val_wer.reset()
         self.val_acc.reset()
 

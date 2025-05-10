@@ -83,29 +83,9 @@ class BaseWhisperModel(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-
-        predicted_text = self.generate(**batch)
-        target_text = self.processor.batch_decode(
-            batch["labels"], skip_special_tokens=True
-        )
-
-        self.val_wer.update(predicted_text, target_text)
-        return {
-            "val_loss": loss,
-            "predictions": predicted_text,
-            "targets": target_text,
-        }
+        return {"val_loss": loss}
 
     def on_validation_epoch_end(self):
-        wer_score = self.val_wer.compute()
-        self.log(
-            "val_wer",
-            wer_score,
-            sync_dist=True,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-        )
         self.val_wer.reset()
 
     def test_step(self, batch, batch_idx):
