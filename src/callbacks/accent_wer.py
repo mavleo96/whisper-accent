@@ -1,14 +1,16 @@
 import logging
+
 import pandas as pd
-from src.constants import ACCENT_TO_ID_MAP
 from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.loggers import TensorBoardLogger
 from torchmetrics.text import WordErrorRate
 
+from src.constants import ACCENT_TO_ID_MAP
+
 logger = logging.getLogger(__name__)
 
-class AccentWERCallback(Callback):
 
+class AccentWERCallback(Callback):
     def __init__(self):
         super().__init__()
         self.id_to_accent_map = dict()
@@ -24,10 +26,12 @@ class AccentWERCallback(Callback):
         self.all_targets = []
         self.all_accents = []
 
-    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
+    def on_validation_batch_end(
+        self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0
+    ):
         normalize = pl_module.processor.tokenizer.normalize
         preds = [normalize(p) for p in outputs["predictions"]]
-        tgts  = [normalize(t) for t in outputs["targets"]]
+        tgts = [normalize(t) for t in outputs["targets"]]
 
         self.all_predictions.extend(preds)
         self.all_targets.extend(tgts)
@@ -62,10 +66,12 @@ class AccentWERCallback(Callback):
 
         self._reset_buffers()
 
-    def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0):
+    def on_test_batch_end(
+        self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0
+    ):
         normalize = pl_module.processor.tokenizer.normalize
         preds = [normalize(p) for p in outputs["predictions"]]
-        tgts  = [normalize(t) for t in outputs["targets"]]
+        tgts = [normalize(t) for t in outputs["targets"]]
 
         self.all_predictions.extend(preds)
         self.all_targets.extend(tgts)

@@ -5,8 +5,8 @@ import lightning as L
 import torch
 from lightning.pytorch.loggers import TensorBoardLogger
 
-from src.callbacks.prediction_logger import PredictionLogger
 from src.callbacks.accent_wer import AccentWERCallback
+from src.callbacks.prediction_logger import PredictionLogger
 from src.data.data_module import EdaccDataModule
 from src.models.base_model import BaseWhisperModel
 
