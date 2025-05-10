@@ -1,6 +1,7 @@
 import lightning as L
 import torch
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import LambdaLR
 from torchmetrics.text import WordErrorRate
 from transformers import WhisperForConditionalGeneration, WhisperProcessor
 
@@ -54,7 +55,6 @@ class BaseWhisperModel(L.LightningModule):
         return F.cross_entropy(
             logits.transpose(1, 2),
             labels,
-            # ignore_index=self.processor.tokenizer.pad_token_id,
         )
 
     def on_train_epoch_start(self):
@@ -124,7 +124,27 @@ class BaseWhisperModel(L.LightningModule):
     def configure_optimizers(self):
         lr = self.optimizer_config.lr
         weight_decay = self.optimizer_config.weight_decay
-        return torch.optim.AdamW(self.parameters(), lr=lr, weight_decay=weight_decay)
+        warmup_steps = 100
+
+        optimizer = torch.optim.AdamW(
+            self.parameters(), lr=lr, weight_decay=weight_decay
+        )
+
+        def lr_lambda(step):
+            if step < warmup_steps:
+                return float(step) / float(max(1, warmup_steps))
+            return 1.0
+
+        scheduler = LambdaLR(optimizer, lr_lambda)
+
+        scheduler_dict = {
+            "scheduler": scheduler,
+            "interval": "step",
+            "frequency": 1,
+            "name": "linear_warmup",
+        }
+
+        return [optimizer], [scheduler_dict]
 
 
 if __name__ == "__main__":

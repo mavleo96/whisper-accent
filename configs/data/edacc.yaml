@@ -1,5 +1,5 @@
 model_name: ${model.model_name}
-max_length: 448
+max_length: 225
 
 batch_size: ${machine.batch_size}
 preprocess_batch_size: ${machine.preprocess_batch_size}

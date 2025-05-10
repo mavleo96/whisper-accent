@@ -1,6 +1,7 @@
 import lightning as L
 import torch
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import LambdaLR
 from torchmetrics.classification import Accuracy
 from torchmetrics.text import WordErrorRate
 from transformers import WhisperProcessor
@@ -123,7 +124,6 @@ class AccentAwareWhisperModel(L.LightningModule):
         transcription_loss = F.cross_entropy(
             outputs.logits.transpose(1, 2),
             batch["labels"],
-            ignore_index=self.processor.tokenizer.pad_token_id,
         )
 
         accent_only_logits = outputs.logits[:, 3, self.accent_token_ids]
@@ -268,14 +268,34 @@ class AccentAwareWhisperModel(L.LightningModule):
     def configure_optimizers(self):
         lr = self.optimizer_config.lr
         weight_decay = self.optimizer_config.weight_decay
-        return torch.optim.AdamW(self.parameters(), lr=lr, weight_decay=weight_decay)
+        warmup_steps = 100
+
+        optimizer = torch.optim.AdamW(
+            self.parameters(), lr=lr, weight_decay=weight_decay
+        )
+
+        def lr_lambda(step):
+            if step < warmup_steps:
+                return float(step) / float(max(1, warmup_steps))
+            return 1.0
+
+        scheduler = LambdaLR(optimizer, lr_lambda)
+
+        scheduler_dict = {
+            "scheduler": scheduler,
+            "interval": "step",
+            "frequency": 1,
+            "name": "linear_warmup",
+        }
+
+        return [optimizer], [scheduler_dict]
 
 
 if __name__ == "__main__":
     from hydra import compose, initialize
 
     with initialize(config_path="../../configs", version_base=None):
-        cfg = compose(config_name="accent_token_model.yaml")
+        cfg = compose(config_name="accent_token_train.yaml")
 
     model = AccentAwareWhisperModel(**cfg.model).to("cuda")
     batch = {

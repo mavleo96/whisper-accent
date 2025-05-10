@@ -32,7 +32,7 @@ def main(cfg):
     model_name = cfg.model.model_name.split("/")[-1]
     tensorboard_logger = TensorBoardLogger(
         save_dir=cfg.trainer.logger[0].save_dir,
-        name=f"baseline_train_{model_name}",
+        name=f"baseline_train_exp_{model_name}",
     )
 
     # Convert config to dict and handle optimizer config
@@ -46,8 +46,8 @@ def main(cfg):
             }
 
     wandb_logger = WandbLogger(
-        project="baseline-train",
-        name=f"baseline_train_{model_name}",
+        project="baseline-train-exp",
+        name=f"baseline_train_exp_{model_name}",
         config=config_dict,
     )
 

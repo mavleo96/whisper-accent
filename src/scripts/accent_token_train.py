@@ -32,13 +32,13 @@ def main(cfg):
     model_name = cfg.model.model_name.split("/")[-1]
     tensorboard_logger = TensorBoardLogger(
         save_dir=cfg.trainer.logger[0].save_dir,
-        name=f"accent_token_train_{model_name}",
+        name=f"accent_token_train_exp_{model_name}",
     )
 
     config_dict = OmegaConf.to_container(cfg, resolve=True)
     wandb_logger = WandbLogger(
-        project="accent-token-train",
-        name=f"accent_token_train_{model_name}",
+        project="accent-token-train-exp",
+        name=f"accent_token_train_exp_{model_name}",
         config=config_dict,
     )
 

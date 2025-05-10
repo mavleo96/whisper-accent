@@ -152,10 +152,13 @@ class EdaccDataModule(L.LightningDataModule):
             max_length=self.max_length,
         )
 
+        labels = label_values.input_ids.clone()
+        labels[~label_values.attention_mask.bool()] = -100
+
         return {
             "input_features": input_values.input_features,
             "attention_mask": input_values.attention_mask,
-            "labels": label_values.input_ids,
+            "labels": labels,
             "decoder_attention_mask": label_values.attention_mask,
             "accent_id": accents_ids,
         }
