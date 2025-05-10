@@ -195,6 +195,7 @@ logs/
 outputs/
 multirun/
 checkpoints/
+wandb/
 
 # Data
 data/*

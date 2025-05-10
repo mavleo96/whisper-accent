@@ -13,11 +13,8 @@ huggingface-cli login
 Evaluate baseline
 ```bash
 python -m src.scripts.baseline_eval +data.subset_mode=$DEV_MODE_BOOL
-```
-
-Format predictions
-```bash
-python -m src.utils.format_predictions +log_dir=$LOG_DIR
+python -m src.scripts.baseline_train +data.subset_mode=$DEV_MODE_BOOL
+python -m src.scripts.accent_token_train +data.subset_mode=$DEV_MODE_BOOL
 ```
 
 ```bash

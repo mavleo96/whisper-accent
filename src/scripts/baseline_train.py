@@ -5,11 +5,10 @@ import hydra
 import lightning as L
 import torch
 from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
-from omegaconf import OmegaConf
 
 from src.callbacks import AccentWERCallback, PredictionSaver
 from src.data.data_module import EdaccDataModule
-from src.models.accent_token_model import AccentAwareWhisperModel
+from src.models.base_model import BaseWhisperModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,12 +18,12 @@ torch.set_float32_matmul_precision("high")
 
 @hydra.main(
     config_path="../../configs",
-    config_name="accent_token_train.yaml",
+    config_name="baseline_train.yaml",
     version_base=None,
 )
 def main(cfg):
     logger.info(f"Initializing model: {cfg.model.model_name}")
-    model = AccentAwareWhisperModel(**cfg.model)
+    model = BaseWhisperModel(**cfg.model)
 
     logger.info("Initializing data module")
     data_module = EdaccDataModule(**cfg.data)
@@ -35,11 +34,10 @@ def main(cfg):
         name=f"accent_token_train_{model_name}",
     )
 
-    config_dict = OmegaConf.to_container(cfg, resolve=True)
     wandb_logger = WandbLogger(
-        project="accent-token-train",
-        name=f"accent_token_train_{model_name}",
-        config=config_dict,
+        project="baseline-train",
+        name=f"baseline_train_{model_name}",
+        config=cfg,
     )
 
     logger.info("Initializing trainer")

@@ -6,7 +6,8 @@ from torchmetrics.text import WordErrorRate
 from transformers import WhisperProcessor
 
 from src.constants import NUM_ACCENTS
-from src.models.accent_token_model.model import WhisperWithAccentToken
+
+from .accent_token.model import WhisperWithAccentToken
 
 ACCENT_LAMBDA = 0.1
 
