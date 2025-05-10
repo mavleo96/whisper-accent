@@ -32,7 +32,7 @@ def main(cfg):
     model_name = cfg.model.model_name.split("/")[-1]
     tensorboard_logger = TensorBoardLogger(
         save_dir=cfg.trainer.logger[0].save_dir,
-        name=f"accent_token_train_{model_name}",
+        name=f"baseline_train_{model_name}",
     )
 
     # Convert config to dict and handle optimizer config
@@ -78,16 +78,6 @@ def main(cfg):
     os.makedirs(save_dir, exist_ok=True)
     checkpoint_path = os.path.join(save_dir, "final_model.ckpt")
     trainer.save_checkpoint(checkpoint_path)
-
-    # Upload model checkpoint as wandb artifact
-    logger.info("Uploading model checkpoint to wandb")
-    artifact = wandb_logger.experiment.Artifact(
-        name=f"model-{model_name}",
-        type="model",
-        description=f"Final model checkpoint for {model_name}",
-    )
-    artifact.add_file(checkpoint_path)
-    wandb_logger.experiment.log_artifact(artifact)
 
     # Close wandb run
     wandb_logger.experiment.finish()

@@ -48,7 +48,7 @@ class AccentAwareWhisperModel(L.LightningModule):
             accent_detection_decoder_input_ids=accent_detection_decoder_input_ids,
             accent_token_id_map=self.accent_token_id_map,
         )
-        self.model = torch.compile(self.model)
+        # self.model = torch.compile(self.model)
 
         # Reference Link: https://github.com/huggingface/transformers/pull/28687
         if self.model.generation_config.is_multilingual:
@@ -175,6 +175,9 @@ class AccentAwareWhisperModel(L.LightningModule):
             prog_bar=True,
         )
 
+    def on_train_epoch_start(self):
+        self.model.train()
+
     def training_step(self, batch, batch_idx):
         decoder_input, decoder_mask = self.prepare_decoder_input(
             batch["labels"], batch["accent_id"], batch["decoder_attention_mask"]
@@ -191,6 +194,9 @@ class AccentAwareWhisperModel(L.LightningModule):
         self.log_metrics("train", losses, losses["accent_logits"], batch)
 
         return {"loss": losses["combined_loss"]}
+
+    def on_validation_epoch_start(self):
+        self.model.eval()
 
     def validation_step(self, batch, batch_idx):
         decoder_input, decoder_mask = self.prepare_decoder_input(
@@ -212,6 +218,9 @@ class AccentAwareWhisperModel(L.LightningModule):
     def on_validation_epoch_end(self):
         self.val_wer.reset()
         self.val_acc.reset()
+
+    def on_test_epoch_start(self):
+        self.model.eval()
 
     def test_step(self, batch, batch_idx):
         predicted_text, predicted_accent = self.generate(

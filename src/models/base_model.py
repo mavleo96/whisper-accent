@@ -16,11 +16,11 @@ class BaseWhisperModel(L.LightningModule):
         self.processor = WhisperProcessor.from_pretrained(model_name)
         self.optimizer_config = optimizer_config
 
-        if torch.cuda.is_available():
-            try:
-                self.model = torch.compile(self.model)
-            except Exception:
-                pass
+        # if torch.cuda.is_available():
+        #     try:
+        #         self.model = torch.compile(self.model)
+        #     except Exception:
+        #         pass
 
         # Reference Link: https://github.com/huggingface/transformers/pull/28687
         if self.model.generation_config.is_multilingual:
@@ -54,8 +54,11 @@ class BaseWhisperModel(L.LightningModule):
         return F.cross_entropy(
             logits.transpose(1, 2),
             labels,
-            ignore_index=self.processor.tokenizer.pad_token_id,
+            # ignore_index=self.processor.tokenizer.pad_token_id,
         )
+
+    def on_train_epoch_start(self):
+        self.model.train()
 
     def training_step(self, batch, batch_idx):
         outputs = self(**batch)
@@ -70,6 +73,9 @@ class BaseWhisperModel(L.LightningModule):
             prog_bar=True,
         )
         return {"loss": loss}
+
+    def on_validation_epoch_start(self):
+        self.model.eval()
 
     def validation_step(self, batch, batch_idx):
         outputs = self(**batch)
@@ -87,6 +93,9 @@ class BaseWhisperModel(L.LightningModule):
 
     def on_validation_epoch_end(self):
         self.val_wer.reset()
+
+    def on_test_epoch_start(self):
+        self.model.eval()
 
     def test_step(self, batch, batch_idx):
         predicted_text = self.generate(**batch)
