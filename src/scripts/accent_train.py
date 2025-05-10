@@ -1,13 +1,19 @@
 import logging
 import os
-from datetime import datetime
 import sys
+from datetime import datetime
+
 import hydra
 import lightning as L
 import torch
-from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping, LearningRateMonitor
+from lightning.pytorch.callbacks import (
+    EarlyStopping,
+    LearningRateMonitor,
+    ModelCheckpoint,
+)
 from lightning.pytorch.loggers import TensorBoardLogger
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
 from src.callbacks.prediction_logger import PredictionLogger
 from src.data.data_module import EdaccDataModule
@@ -20,19 +26,21 @@ torch.set_float32_matmul_precision("high")
 
 
 @hydra.main(
-    config_path="../../configs/trainer", config_name="accent_train.yaml", version_base=None
+    config_path="../../configs/trainer",
+    config_name="accent_train.yaml",
+    version_base=None,
 )
 def main(cfg):
     # Create unique experiment name with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_name = cfg.model.model_name.split("/")[-1]
     experiment_name = f"{model_name}_{timestamp}"
-    
+
     # Set up model save directory
     save_dir = os.path.join(cfg.trainer.save_dir, experiment_name)
     os.makedirs(save_dir, exist_ok=True)
     logger.info(f"Model will be saved to: {save_dir}")
-    
+
     # Initialize model
     logger.info(f"Initializing model: {cfg.model.model_name}")
     model = AccentAwareWhisperModel(**cfg.model)
@@ -49,15 +57,15 @@ def main(cfg):
 
     # Set up callbacks
     callbacks = [
-        # Save best model based on validation WER
-        ModelCheckpoint(
-            dirpath=save_dir,
-            filename="{epoch}-{val_wer:.4f}",
-            monitor="val_wer",
-            mode="min",
-            save_top_k=3,
-            verbose=True,
-        ),
+        # # Save best model based on validation WER
+        # ModelCheckpoint(
+        #     dirpath=save_dir,
+        #     filename="{epoch}-{val_wer:.4f}",
+        #     monitor="val_wer",
+        #     mode="min",
+        #     save_top_k=3,
+        #     verbose=True,
+        # ),
         # Save last model
         ModelCheckpoint(
             dirpath=save_dir,
@@ -65,15 +73,15 @@ def main(cfg):
             save_last=True,
             verbose=True,
         ),
-        # Early stopping based on validation WER
-        EarlyStopping(
-            monitor="val_wer",
-            patience=cfg.trainer.early_stopping_patience,
-            mode="min",
-            verbose=True,
-        ),
-        # Learning rate monitor
-        LearningRateMonitor(logging_interval="step"),
+        # # Early stopping based on validation WER
+        # EarlyStopping(
+        #     monitor="val_wer",
+        #     patience=cfg.trainer.early_stopping_patience,
+        #     mode="min",
+        #     verbose=True,
+        # ),
+        # # Learning rate monitor
+        # LearningRateMonitor(logging_interval="step"),
         # Custom prediction logger
         PredictionLogger(),
     ]
@@ -92,13 +100,13 @@ def main(cfg):
         gradient_clip_val=cfg.trainer.gradient_clip_val,
         accumulate_grad_batches=cfg.trainer.accumulate_grad_batches,
         log_every_n_steps=cfg.trainer.log_every_n_steps,
-        val_check_interval=cfg.trainer.val_check_interval,
+        check_val_every_n_epoch=cfg.trainer.check_val_every_n_epoch,
     )
 
     # Train the model
     logger.info("Starting training")
     trainer.fit(model, data_module)
-    
+
     # Save the final model explicitly (in addition to checkpoints)
     final_model_path = os.path.join(save_dir, "final_model")
     model.model.save_pretrained(final_model_path)
@@ -132,7 +140,7 @@ def main(cfg):
     for callback in callbacks:
         if isinstance(callback, ModelCheckpoint) and not callback.save_last:
             best_checkpoint = callback.best_model_path
-            
+
     if best_checkpoint:
         logger.info(f"Best checkpoint: {best_checkpoint}")
         return best_checkpoint
