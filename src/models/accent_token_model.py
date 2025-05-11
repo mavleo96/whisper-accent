@@ -123,11 +123,14 @@ class AccentAwareWhisperModel(L.LightningModule):
     def compute_losses(self, outputs, batch):
         transcription_loss = F.cross_entropy(
             outputs.logits.transpose(1, 2),
-            batch["labels"],
+            batch["decoder_input"],
         )
 
         accent_only_logits = outputs.logits[:, 3, self.accent_token_ids]
-        accent_loss = F.cross_entropy(accent_only_logits, batch["accent_id"])
+        accent_loss = F.cross_entropy(
+            accent_only_logits,
+            batch["accent_id"],
+        )
 
         combined_loss = transcription_loss + ACCENT_LAMBDA * accent_loss
 
@@ -190,6 +193,7 @@ class AccentAwareWhisperModel(L.LightningModule):
             decoder_attention_mask=decoder_mask,
         )
 
+        batch["decoder_input"] = decoder_input
         losses = self.compute_losses(outputs, batch)
         self.log_metrics("train", losses, losses["accent_logits"], batch)
 
@@ -210,6 +214,7 @@ class AccentAwareWhisperModel(L.LightningModule):
             decoder_attention_mask=decoder_mask,
         )
 
+        batch["decoder_input"] = decoder_input
         losses = self.compute_losses(outputs, batch)
         self.log_metrics("val", losses, losses["accent_logits"], batch)
 
@@ -266,12 +271,32 @@ class AccentAwareWhisperModel(L.LightningModule):
         self.test_acc.reset()
 
     def configure_optimizers(self):
+        # for param in self.model.parameters():
+        #     param.requires_grad = False
+
+        # for param in self.model.model.decoder.layers[-1].parameters():
+        #     param.requires_grad = True
+        #     if hasattr(param, "dropout"):
+        #         param.dropout = 0.7  # Increased dropout for stronger regularization
+
+        # for param in self.model.proj_out.parameters():
+        #     param.requires_grad = True
+        #     if hasattr(param, "dropout"):
+        #         param.dropout = 0.7
+
+        # # for param in self.model.model.decoder.embed_tokens.parameters():
+        # #     param.requires_grad = True
+
+        # # for param in self.model.model.decoder.layer_norm.parameters():
+        # #     param.requires_grad = True
+
+        trainable_params = [p for p in self.parameters() if p.requires_grad]
         lr = self.optimizer_config.lr
         weight_decay = self.optimizer_config.weight_decay
         warmup_steps = 100
 
         optimizer = torch.optim.AdamW(
-            self.parameters(), lr=lr, weight_decay=weight_decay
+            trainable_params, lr=lr, weight_decay=weight_decay
         )
 
         def lr_lambda(step):

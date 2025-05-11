@@ -41,8 +41,12 @@ class EdaccDataModule(L.LightningDataModule):
         if not self.processed_dir.exists():
             self.processed_dir.mkdir(parents=True, exist_ok=True)
 
+        self.edacc_dir = self.processed_dir / "edacc"
+        if not self.edacc_dir.exists():
+            self.edacc_dir.mkdir(parents=True, exist_ok=True)
+
         model_dir_name = model_name.replace("/", "_").replace(".", "_")
-        model_dir = self.processed_dir / model_dir_name
+        model_dir = self.edacc_dir / model_dir_name
         self.subset_dir = model_dir / "subset"
         self.full_dir = model_dir / "full"
         if not self.subset_dir.exists():
@@ -75,9 +79,8 @@ class EdaccDataModule(L.LightningDataModule):
             "edinburghcstr/edacc", split="test", cache_dir=self.cache_dir
         )
         if self.subset_mode:
-            # Note: for testing purposes
-            val_dataset = val_dataset.select(range(100))
-            test_dataset = test_dataset.select(range(100))
+            val_dataset = val_dataset.select(range(1000))
+            test_dataset = test_dataset.select(range(1000))
 
         # Resample audio to SAMPLING_RATE
         val_dataset = val_dataset.cast_column(

@@ -122,12 +122,34 @@ class BaseWhisperModel(L.LightningModule):
         self.test_wer.reset()
 
     def configure_optimizers(self):
+        # for param in self.model.parameters():
+        #     param.requires_grad = False
+
+        # # Note: Below setup is applicable for base and base.en models only
+        # # Only unfreeze the last encoder layer
+        # for param in self.model.model.encoder.layers[-1].parameters():
+        #     param.requires_grad = True
+        #     # Add dropout to encoder layer
+        #     if hasattr(param, "dropout"):
+        #         param.dropout = 0.5
+
+        # # Only unfreeze the last decoder layer
+        # for param in self.model.model.decoder.layers[-1].parameters():
+        #     param.requires_grad = True
+        #     # Add dropout to decoder layer
+        #     if hasattr(param, "dropout"):
+        #         param.dropout = 0.5
+
+        # for param in self.model.proj_out.parameters():
+        #     param.requires_grad = True
+
+        trainable_params = [p for p in self.parameters() if p.requires_grad]
         lr = self.optimizer_config.lr
         weight_decay = self.optimizer_config.weight_decay
         warmup_steps = 100
 
         optimizer = torch.optim.AdamW(
-            self.parameters(), lr=lr, weight_decay=weight_decay
+            trainable_params, lr=lr, weight_decay=weight_decay
         )
 
         def lr_lambda(step):
