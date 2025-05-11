@@ -1,31 +1,10 @@
 import lightning as L
 import torch
 import torch.nn.functional as F
-from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, get_peft_model
 from torch.optim.lr_scheduler import LambdaLR
 from torchmetrics.text import WordErrorRate
 from transformers import WhisperForConditionalGeneration, WhisperProcessor
-
-# from peft import prepare_model_for_int8_training
-
-
-class CustomWhisperForConditionalGeneration(WhisperForConditionalGeneration):
-    def forward(
-        self,
-        input_features=None,
-        attention_mask=None,
-        decoder_input_ids=None,
-        decoder_attention_mask=None,
-        labels=None,
-        **kwargs
-    ):
-        return super().forward(
-            input_features=input_features,
-            attention_mask=attention_mask,
-            decoder_input_ids=decoder_input_ids,
-            decoder_attention_mask=decoder_attention_mask,
-            labels=labels,
-        )
 
 
 class BaseWhisperModel(L.LightningModule):
@@ -36,28 +15,17 @@ class BaseWhisperModel(L.LightningModule):
         self.save_hyperparameters()
 
         # Initialize base model
-        self.model = CustomWhisperForConditionalGeneration.from_pretrained(model_name)
+        self.model = WhisperForConditionalGeneration.from_pretrained(model_name)
         self.processor = WhisperProcessor.from_pretrained(model_name)
         self.optimizer_config = optimizer_config
 
-        # Configure LoRA
         peft_config = LoraConfig(
-            task_type=TaskType.SEQ_2_SEQ_LM,
             inference_mode=False,
             r=8,  # rank
             lora_alpha=32,
             lora_dropout=0.1,
             target_modules=["q_proj", "v_proj", "k_proj", "out_proj", "fc1", "fc2"],
         )
-
-        # Prepare model for PEFT
-        self.model = prepare_model_for_kbit_training(self.model)
-
-        # self.model = prepare_model_for_int8_training(self.model, output_embedding_layer_name="proj_out")
-        def make_inputs_require_grad(module, input, output):
-            output.requires_grad_(True)
-
-        self.model.model.encoder.conv1.register_forward_hook(make_inputs_require_grad)
         self.model = get_peft_model(self.model, peft_config)
 
         # Print trainable parameters info
