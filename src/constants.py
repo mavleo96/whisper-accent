@@ -1,6 +1,6 @@
 SAMPLING_RATE = 16000
 
-NUM_ACCENTS = 12
+NUM_ACCENTS = 14
 
 ACCENT_TO_ID_MAP = {
     'United States English': 0,
@@ -14,5 +14,7 @@ ACCENT_TO_ID_MAP = {
     'New Zealand English': 8,
     'Hong Kong Englis': 9,
     'Malaysian English': 10,
-    'Unknown': 11
+    'Welsh English' : 11,
+    'Filipino' :12,
+    'Singaporean English': 13
 }
