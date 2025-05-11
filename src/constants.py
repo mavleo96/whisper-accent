@@ -1,18 +1,18 @@
 SAMPLING_RATE = 16000
 
-NUM_ACCENTS = 11
+NUM_ACCENTS = 12
 
 ACCENT_TO_ID_MAP = {
-    "Southern British English": 0,
-    "Mainstream US English": 1,
-    "Irish English": 2,
-    "Eastern European": 3,
-    "Italian": 4,
-    "Egyptian": 5,
-    "Vietnamese": 6,
-    "Chinese": 7,
-    "Indian English": 8,
-    "Indonesian English": 9,
-    "Indonesian": 9,
-    "Unknown": 10,
+    'United States English': 0,
+    'India and South Asia (India, Pakistan, Sri Lanka)': 1,
+    'England English': 2,
+    'Canadian English': 3,
+    'Australian English': 4,
+    'Southern African (South Africa, Zimbabwe, Namibia)': 5,
+    'Irish English': 6,
+    'Scottish English': 7,
+    'New Zealand English': 8,
+    'Hong Kong Englis': 9,
+    'Malaysian English': 10,
+    'Unknown': 11
 }
