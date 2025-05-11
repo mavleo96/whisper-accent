@@ -43,18 +43,12 @@ class BaseWhisperModel(L.LightningModule):
     def forward(
         self, input_features, labels, attention_mask, decoder_attention_mask, **kwargs
     ):
-        """Forward pass with proper argument handling for Whisper model"""
-        # Remove any unexpected arguments that might be passed
-        model_kwargs = {
-            "input_features": input_features,
-            "attention_mask": attention_mask,
-            "labels": labels,
-            "decoder_attention_mask": decoder_attention_mask,
-        }
-        # Remove None values
-        model_kwargs = {k: v for k, v in model_kwargs.items() if v is not None}
-
-        return self.model(**model_kwargs)
+        return self.model(
+            input_features,
+            attention_mask=attention_mask,
+            labels=labels,
+            decoder_attention_mask=decoder_attention_mask,
+        )
 
     def generate(self, input_features, attention_mask, **kwargs):
         predicted_ids = self.model.generate(
