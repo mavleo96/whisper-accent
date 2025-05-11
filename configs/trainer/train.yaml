@@ -1,11 +1,11 @@
 # Hardware settings
-devices: 1
+devices: 2
 precision: 16-mixed
 accelerator: "auto"
-strategy: "auto"
+strategy: ddp_find_unused_parameters_true
 
 # Training parameters
-max_epochs: 1
+max_epochs: 2
 gradient_clip_val: 1.0
 accumulate_grad_batches: 2
 log_every_n_steps: 1

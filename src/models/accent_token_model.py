@@ -271,24 +271,24 @@ class AccentAwareWhisperModel(L.LightningModule):
         self.test_acc.reset()
 
     def configure_optimizers(self):
-        # for param in self.model.parameters():
-        #     param.requires_grad = False
+        for param in self.model.parameters():
+            param.requires_grad = False
 
         # for param in self.model.model.decoder.layers[-1].parameters():
         #     param.requires_grad = True
         #     if hasattr(param, "dropout"):
-        #         param.dropout = 0.7  # Increased dropout for stronger regularization
+        #         param.dropout = 0.5  # Increased dropout for stronger regularization
 
-        # for param in self.model.proj_out.parameters():
-        #     param.requires_grad = True
-        #     if hasattr(param, "dropout"):
-        #         param.dropout = 0.7
+        for param in self.model.proj_out.parameters():
+            param.requires_grad = True
+            if hasattr(param, "dropout"):
+                param.dropout = 0.5
 
-        # # for param in self.model.model.decoder.embed_tokens.parameters():
-        # #     param.requires_grad = True
+        for param in self.model.model.decoder.embed_tokens.parameters():
+            param.requires_grad = True
 
-        # # for param in self.model.model.decoder.layer_norm.parameters():
-        # #     param.requires_grad = True
+        for param in self.model.model.decoder.layer_norm.parameters():
+            param.requires_grad = True
 
         trainable_params = [p for p in self.parameters() if p.requires_grad]
         lr = self.optimizer_config.lr

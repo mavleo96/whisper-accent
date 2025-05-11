@@ -23,7 +23,9 @@ class WhisperWithAccentToken(WhisperForConditionalGeneration):
         model = super().from_pretrained(
             pretrained_model_name_or_path, *model_args, **kwargs
         )
-        model.resize_token_embeddings(model.config.vocab_size + NUM_ACCENTS)
+        model.model.decoder.resize_token_embeddings(
+            model.config.vocab_size + NUM_ACCENTS
+        )
         model.accent_detection_decoder_input_ids = accent_detection_decoder_input_ids
         model.accent_token_id_map = accent_token_id_map
         return model

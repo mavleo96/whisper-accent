@@ -1,5 +1,5 @@
-model_name: "openai/whisper-base.en"
+model_name: "openai/whisper-tiny.en"
 
 optimizer_config:
   lr: 1e-6
-  weight_decay: 1e-1
+  weight_decay: 1
