@@ -19,7 +19,7 @@ torch.set_float32_matmul_precision("high")
 
 @hydra.main(
     config_path="../../configs",
-    config_name="accent_token_train.yaml",
+    config_name="train_config.yaml",
     version_base=None,
 )
 def main(cfg):

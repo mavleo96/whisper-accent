@@ -9,7 +9,7 @@ from omegaconf import OmegaConf
 
 from src.callbacks import AccentWERCallback, PredictionSaver
 from src.data.data_module import EdaccDataModule
-from src.models.base_model_peft import BaseWhisperModel
+from src.models.base_model_peft import BaseWhisperModelWithPEFT
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,12 +19,12 @@ torch.set_float32_matmul_precision("high")
 
 @hydra.main(
     config_path="../../configs",
-    config_name="baseline_train.yaml",
+    config_name="train_config.yaml",
     version_base=None,
 )
 def main(cfg):
     logger.info(f"Initializing model: {cfg.model.model_name}")
-    model = BaseWhisperModel(**cfg.model)
+    model = BaseWhisperModelWithPEFT(**cfg.model)
 
     logger.info("Initializing data module")
     data_module = EdaccDataModule(**cfg.data)

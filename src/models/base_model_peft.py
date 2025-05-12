@@ -7,7 +7,7 @@ from torchmetrics.text import WordErrorRate
 from transformers import WhisperForConditionalGeneration, WhisperProcessor
 
 
-class BaseWhisperModel(L.LightningModule):
+class BaseWhisperModelWithPEFT(L.LightningModule):
     """Lightning module for whisper models with PEFT for efficient fine-tuning"""
 
     def __init__(self, model_name, optimizer_config):

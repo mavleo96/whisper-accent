@@ -7,6 +7,10 @@ from src.constants import ACCENT_TO_ID_MAP
 
 
 class AccentWERCallback(Callback):
+    """
+    Callback to calculate and log the Word Error Rate (WER) by accent.
+    """
+
     def __init__(self):
         super().__init__()
         self.id_to_accent_map = {value: key for key, value in ACCENT_TO_ID_MAP.items()}
@@ -61,16 +65,6 @@ class AccentWERCallback(Callback):
                     key=f"{metric_name}_table",
                     dataframe=df,
                 )
-
-    # def on_validation_batch_end(
-    #     self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0
-    # ):
-    #     self._process_batch(pl_module, outputs, batch)
-
-    # def on_validation_epoch_end(self, trainer, pl_module):
-    #     overall, rows = self._calculate_wer_metrics()
-    #     self._log_wer_metrics(trainer, overall, rows, "val_accent_wer")
-    #     self._reset_buffers()
 
     def on_test_batch_end(
         self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx=0

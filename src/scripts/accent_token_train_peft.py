@@ -9,7 +9,7 @@ from omegaconf import OmegaConf
 
 from src.callbacks import AccentWERCallback, PredictionSaver
 from src.data.data_module import EdaccDataModule
-from src.models.base_model import BaseWhisperModel
+from src.models.accent_token_model_peft import AccentAwareWhisperModelWithPEFT
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,12 +19,12 @@ torch.set_float32_matmul_precision("high")
 
 @hydra.main(
     config_path="../../configs",
-    config_name="baseline_train.yaml",
+    config_name="train_config.yaml",
     version_base=None,
 )
 def main(cfg):
     logger.info(f"Initializing model: {cfg.model.model_name}")
-    model = BaseWhisperModel(**cfg.model)
+    model = AccentAwareWhisperModelWithPEFT(**cfg.model)
 
     logger.info("Initializing data module")
     data_module = EdaccDataModule(**cfg.data)
@@ -32,22 +32,13 @@ def main(cfg):
     model_name = cfg.model.model_name.split("/")[-1]
     tensorboard_logger = TensorBoardLogger(
         save_dir=cfg.trainer.logger[0].save_dir,
-        name=f"baseline_train_{model_name}",
+        name=f"accent_token_train_peft_{model_name}",
     )
 
-    # Convert config to dict and handle optimizer config
     config_dict = OmegaConf.to_container(cfg, resolve=True)
-    if "model" in config_dict and "optimizer_config" in config_dict["model"]:
-        opt_config = config_dict["model"]["optimizer_config"]
-        if hasattr(opt_config, "lr"):
-            config_dict["model"]["optimizer_config"] = {
-                "lr": float(opt_config.lr),
-                "weight_decay": float(opt_config.weight_decay),
-            }
-
     wandb_logger = WandbLogger(
-        project="baseline-train",
-        name=f"baseline_train_{model_name}",
+        project="accent-token-train-peft",
+        name=f"accent_token_train_peft_{model_name}",
         config=config_dict,
     )
 

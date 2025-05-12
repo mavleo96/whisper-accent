@@ -5,6 +5,10 @@ from src.constants import NUM_ACCENTS
 
 
 class WhisperWithAccentToken(WhisperForConditionalGeneration):
+    """
+    A modified version of the WhisperForConditionalGeneration model that includes an accent token.
+    """
+
     def __init__(self, config):
         super().__init__(config)
         print(
@@ -54,6 +58,8 @@ class WhisperWithAccentToken(WhisperForConditionalGeneration):
     def generate(
         self, input_features, attention_mask, decoder_input_ids=None, **kwargs
     ):
+        # If decoder_input_ids is not provided, detect the accent token IDs
+        # and add them to the decoder input IDs
         if decoder_input_ids is None:
             # Get accent token IDs for decoder input
             accent_token_ids = self.detect_accent(
@@ -83,6 +89,7 @@ class WhisperWithAccentToken(WhisperForConditionalGeneration):
             device=accent_token_ids.device,
         )
 
+        # Return the generated text and the accent IDs (either predicted or provided)
         return {
             "generated_text": output,
             "accent_ids": accent_indices,

@@ -4,6 +4,10 @@ from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
 
 
 class PredictionSaver(Callback):
+    """
+    Callback to save predictions and targets to a CSV file.
+    """
+
     def __init__(self):
         super().__init__()
         self.all_predictions = []

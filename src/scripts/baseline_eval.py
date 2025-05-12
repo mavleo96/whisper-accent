@@ -17,7 +17,7 @@ torch.set_float32_matmul_precision("high")
 
 
 @hydra.main(
-    config_path="../../configs", config_name="baseline_eval.yaml", version_base=None
+    config_path="../../configs", config_name="eval_config.yaml", version_base=None
 )
 def main(cfg):
     logger.info(f"Initializing model: {cfg.model.model_name}")
