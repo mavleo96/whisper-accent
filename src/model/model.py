@@ -1,0 +1,140 @@
+from typing import Optional, Union
+
+import numpy as np
+import torch
+import torch.nn as nn
+from transformers import (GenerationConfig, WhisperConfig,
+                          WhisperForConditionalGeneration, WhisperModel)
+from transformers.modeling_outputs import BaseModelOutput
+
+
+class WhisperAccentConfig(WhisperConfig):
+    model_type = "whisper_accent"
+
+
+class WhisperAccentModel(WhisperModel):
+    config_class = WhisperAccentConfig
+
+    def __init__(self, config: WhisperConfig):
+        super().__init__(config)
+
+
+class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
+    config_class = WhisperAccentConfig
+
+    def __init__(self, config: WhisperConfig):
+        super().__init__(config)
+        self.model = WhisperAccentModel(config)
+        self.proj_out = nn.Linear(config.d_model, config.vocab_size, bias=False)
+        self.max_target_positions = config.max_target_positions
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
+    def detect_accent(
+        self,
+        decoder_input_ids: Optional[torch.LongTensor] = None,
+        input_features: Optional[torch.FloatTensor] = None,
+        encoder_outputs: Optional[Union[torch.FloatTensor, BaseModelOutput]] = None,
+        generation_config: Optional[GenerationConfig] = None,
+        num_segment_frames: int = 3000,
+    ) -> torch.LongTensor:
+        if input_features is None and encoder_outputs is None:
+            raise ValueError(
+                "You have to specify either `input_features` or `encoder_outputs`"
+            )
+        elif input_features is not None and encoder_outputs is not None:
+            raise ValueError(
+                "Make sure to specify only one of `input_features` or `encoder_outputs` - not both!"
+            )
+        elif input_features is not None:
+            inputs = {"input_features": input_features[:, :, :num_segment_frames]}
+        elif encoder_outputs is not None:
+            inputs = {"encoder_outputs": encoder_outputs}
+
+        generation_config = generation_config or self.generation_config
+
+        with torch.no_grad():
+            logits = self(
+                **inputs, decoder_input_ids=decoder_input_ids, use_cache=False
+            ).logits[:, -1]
+
+        # Mask out non-accent tokens
+        non_accent_mask = torch.ones_like(logits[0], dtype=torch.bool)
+        non_accent_mask[list(generation_config.accent_to_id.values())] = False
+
+        # Set non-accent tokens to -inf
+        logits[:, non_accent_mask] = -np.inf
+
+        # Get accent ids
+        accent_ids = logits.argmax(-1)
+
+        return accent_ids
+
+    def _retrieve_init_tokens(
+        self,
+        input_features,
+        batch_size,
+        generation_config,
+        config,
+        num_segment_frames,
+        kwargs,
+    ):
+        init_tokens = super()._retrieve_init_tokens(
+            input_features,
+            batch_size,
+            generation_config,
+            config,
+            num_segment_frames,
+            kwargs,
+        )
+
+        # Check if init tokens have language tokens
+        has_lang_tokens = False
+        if self.generation_config.is_multilingual:
+            if init_tokens.shape[1] > 1:
+                lang_tokens = init_tokens[:, 1].cpu().tolist()
+                has_lang_tokens = all(
+                    token in self.generation_config.lang_to_id.values()
+                    for token in lang_tokens
+                )
+                if not has_lang_tokens:
+                    raise ValueError(
+                        "Generation config is multilingual but init tokens does not have valid language tokens."
+                    )
+            else:
+                raise ValueError(
+                    "Generation config is multilingual but init tokens does not have a language token."
+                )
+
+        # If has language tokens, use first two tokens as decoder input ids
+        if has_lang_tokens:
+            decoder_input_ids = init_tokens[:, :2]
+        # If no language tokens, use first token as decoder input ids
+        else:
+            decoder_input_ids = init_tokens[:, :1]
+        # Detect accent
+        accent_ids = self.detect_accent(
+            decoder_input_ids=decoder_input_ids,
+            input_features=input_features,
+            encoder_outputs=kwargs.get("encoder_outputs", None),
+            generation_config=generation_config,
+            num_segment_frames=num_segment_frames,
+        )
+
+        # Insert accent ids after language tokens
+        if has_lang_tokens:
+            init_tokens = torch.cat(
+                [init_tokens[:, :2], accent_ids.unsqueeze(1), init_tokens[:, 2:]], dim=1
+            )
+        else:
+            init_tokens = torch.cat(
+                [init_tokens[:, :1], accent_ids.unsqueeze(1), init_tokens[:, 1:]], dim=1
+            )
+
+        return init_tokens
+
+    # TODO: return accent_ids in generation output
+    def generate(self, *args, **kwargs):
+        output = super().generate(*args, **kwargs)
+        return output
