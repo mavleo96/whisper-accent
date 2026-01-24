@@ -138,3 +138,6 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
     def generate(self, *args, **kwargs):
         output = super().generate(*args, **kwargs)
         return output
+
+
+__all__ = ["WhisperAccentConfig", "WhisperAccentModel", "WhisperAccentForConditionalGeneration"]
