@@ -1,11 +1,21 @@
 from .model import *
+from .tokenization import *
 
-__all__ = ["WhisperAccentConfig", "WhisperAccentModel", "WhisperAccentForConditionalGeneration"]
+# from transformers import AutoConfig, AutoTokenizer, AutoProcessor, AutoModel
+
+__all__ = [
+    "WhisperAccentConfig",
+    "WhisperAccentModel",
+    "WhisperAccentForConditionalGeneration",
+    "WhisperAccentTokenizerFast",
+    "WhisperAccentProcessor",
+]
 
 # # Register model and config on import only once
 # _registered = False
 # if not _registered:
-#     WhisperAccentConfig.register_for_auto_class()
-#     WhisperAccentModel.register_for_auto_class()
-#     WhisperAccentForConditionalGeneration.register_for_auto_class()
+#     AutoConfig.register("whisper_accent", config=WhisperAccentConfig)
+#     AutoTokenizer.register(WhisperAccentConfig, fast_tokenizer_class=WhisperAccentTokenizerFast)
+#     AutoProcessor.register(WhisperAccentConfig, processor_class=WhisperAccentProcessor)
+#     AutoModel.register(WhisperAccentConfig, model_class=WhisperAccentModel)
 #     _registered = True

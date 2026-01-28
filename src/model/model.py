@@ -3,8 +3,12 @@ from typing import Optional, Union
 import numpy as np
 import torch
 import torch.nn as nn
-from transformers import (GenerationConfig, WhisperConfig,
-                          WhisperForConditionalGeneration, WhisperModel)
+from transformers import (
+    GenerationConfig,
+    WhisperConfig,
+    WhisperForConditionalGeneration,
+    WhisperModel,
+)
 from transformers.modeling_outputs import BaseModelOutput
 
 
@@ -89,30 +93,28 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
             kwargs,
         )
 
-        # Check if init tokens have language tokens
-        has_lang_tokens = False
-        if self.generation_config.is_multilingual:
-            if init_tokens.shape[1] > 1:
-                lang_tokens = init_tokens[:, 1].cpu().tolist()
-                has_lang_tokens = all(
-                    token in self.generation_config.lang_to_id.values()
-                    for token in lang_tokens
-                )
-                if not has_lang_tokens:
-                    raise ValueError(
-                        "Generation config is multilingual but init tokens does not have valid language tokens."
-                    )
-            else:
-                raise ValueError(
-                    "Generation config is multilingual but init tokens does not have a language token."
-                )
+        # Check if init tokens have no_timestamps_token_id
+        last_token = init_tokens[:, -1]
+        has_no_timestamps_token = torch.all(
+            last_token == self.generation_config.no_timestamps_token_id
+        ).item()
 
-        # If has language tokens, use first two tokens as decoder input ids
-        if has_lang_tokens:
-            decoder_input_ids = init_tokens[:, :2]
-        # If no language tokens, use first token as decoder input ids
+        # Consistency check between return_timestamps flag and presence of no_timestamps_token_id
+        if not self.generation_config.return_timestamps and not has_no_timestamps_token:
+            raise ValueError(
+                "Generation config return_timestamps is set to False, but the init tokens do not end with no_timestamps_token_id."
+            )
+        if self.generation_config.return_timestamps and has_no_timestamps_token:
+            raise ValueError(
+                "Generation config return_timestamps is set to True, but the init tokens end with no_timestamps_token_id."
+            )
+
+        # If has no_timestamps_token_id, use init_tokens without last token as decoder input ids
+        if has_no_timestamps_token:
+            decoder_input_ids = init_tokens[:, :-1]
+        # If no no_timestamps_token_id, use init_tokens as decoder input ids
         else:
-            decoder_input_ids = init_tokens[:, :1]
+            decoder_input_ids = init_tokens
         # Detect accent
         accent_ids = self.detect_accent(
             decoder_input_ids=decoder_input_ids,
@@ -122,15 +124,14 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
             num_segment_frames=num_segment_frames,
         )
 
-        # Insert accent ids after language tokens
-        if has_lang_tokens:
+        # Insert accent ids before no_timestamps_token_id; if return_timestamps is set to True, insert at last index
+        if has_no_timestamps_token:
             init_tokens = torch.cat(
-                [init_tokens[:, :2], accent_ids.unsqueeze(1), init_tokens[:, 2:]], dim=1
+                [init_tokens[:, :-1], accent_ids.unsqueeze(1), init_tokens[:, -1:]],
+                dim=1,
             )
         else:
-            init_tokens = torch.cat(
-                [init_tokens[:, :1], accent_ids.unsqueeze(1), init_tokens[:, 1:]], dim=1
-            )
+            init_tokens = torch.cat([init_tokens, accent_ids.unsqueeze(1)], dim=1)
 
         return init_tokens
 
@@ -140,4 +141,8 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
         return output
 
 
-__all__ = ["WhisperAccentConfig", "WhisperAccentModel", "WhisperAccentForConditionalGeneration"]
+__all__ = [
+    "WhisperAccentConfig",
+    "WhisperAccentModel",
+    "WhisperAccentForConditionalGeneration",
+]
