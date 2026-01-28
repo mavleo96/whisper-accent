@@ -9,3 +9,4 @@ pip install torch lightning tensorboard torchmetrics torchaudio torchcodec torch
 pip install huggingface-hub transformers accelerate peft datasets
 pip install hydra-core ipykernel wandb black pylint tqdm
 pip install scikit-learn scipy numpy pandas matplotlib seaborn
+pip install pre-commit

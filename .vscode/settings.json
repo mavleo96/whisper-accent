@@ -1,0 +1,4 @@
+{
+    "python.defaultInterpreterPath": "/venv/asr/bin/python",
+    "python.analysis.extraPaths": []
+}
