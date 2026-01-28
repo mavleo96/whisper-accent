@@ -11,9 +11,7 @@ from transformers import (
 )
 from transformers.modeling_outputs import BaseModelOutput
 
-
-class WhisperAccentConfig(WhisperConfig):
-    model_type = "whisper_accent"
+from .configuration import WhisperAccentConfig
 
 
 class WhisperAccentModel(WhisperModel):
@@ -142,7 +140,6 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
 
 
 __all__ = [
-    "WhisperAccentConfig",
     "WhisperAccentModel",
     "WhisperAccentForConditionalGeneration",
 ]
