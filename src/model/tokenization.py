@@ -1,7 +1,21 @@
-from transformers import WhisperProcessor, WhisperTokenizerFast
+from transformers import WhisperProcessor, WhisperTokenizer
+
+ACCENTS = {
+    "<|a_us|>": "mainstream us",
+    "<|a_southern_british|>": "southern british",
+    "<|a_irish|>": "irish",
+    "<|a_eastern_european|>": "eastern european",
+    "<|a_italian|>": "italian",
+    "<|a_egyptian|>": "egyptian",
+    "<|a_vietnamese|>": "vietnamese",
+    "<|a_chinese|>": "chinese",
+    "<|a_indian|>": "indian",
+    "<|a_indonesian|>": "indonesian",
+    "<|a_unknown|>": "unknown",
+}
 
 
-class WhisperAccentTokenizerFast(WhisperTokenizerFast):
+class WhisperAccentTokenizer(WhisperTokenizer):
     def __init__(self, *args, **kwargs):
         self.accent = kwargs.pop("accent", None)
         super().__init__(*args, **kwargs)
@@ -20,11 +34,15 @@ class WhisperAccentTokenizerFast(WhisperTokenizerFast):
             return bos_sequence
 
         # If accent is set, insert accent token id
-        accent_token_id = self.convert_tokens_to_ids(self.accent)
-        if accent_token_id == self.eos_token_id:
-            # TODO: Add supported accents
+        self.accent = self.accent.lower()
+        if self.accent not in ACCENTS.values():
             raise ValueError(
-                f"Unsupported accent: {self.accent}. Accent should be one of: {['<|accent0|>', '<|accent1|>']}."
+                f"Unsupported accent: {self.accent}. Accent should be one of: {list(ACCENTS.values())}."
+            )
+        accent_token_id = self.convert_tokens_to_ids(ACCENTS[self.accent])
+        if accent_token_id == self.eos_token_id:
+            raise ValueError(
+                f"Accent token {ACCENTS[self.accent]} was not found in the tokenizer."
             )
 
         # if predict_timestamps is not set, insert accent token id before timestamps token
@@ -36,8 +54,13 @@ class WhisperAccentTokenizerFast(WhisperTokenizerFast):
 
 
 class WhisperAccentProcessor(WhisperProcessor):
-    feature_extractor_class = "WhisperFeatureExtractor"
-    tokenizer_class = "WhisperAccentTokenizerFast"
+    @classmethod
+    def _load_tokenizer_from_pretrained(
+        cls, sub_processor_type, pretrained_model_name_or_path, subfolder="", **kwargs
+    ):
+        return WhisperAccentTokenizer.from_pretrained(
+            pretrained_model_name_or_path, **kwargs
+        )
 
 
-__all__ = ["WhisperAccentTokenizerFast", "WhisperAccentProcessor"]
+__all__ = ["WhisperAccentTokenizer", "WhisperAccentProcessor"]
