@@ -21,10 +21,8 @@ def register_whisper_accent():
     AutoModelForSpeechSeq2Seq.register(
         WhisperAccentConfig, WhisperAccentForConditionalGeneration
     )
-    AutoTokenizer.register(
-        WhisperAccentConfig, fast_tokenizer_class=WhisperAccentTokenizer
-    )
-    AutoProcessor.register(WhisperAccentConfig, processor_class=WhisperAccentProcessor)
+    AutoTokenizer.register(WhisperAccentConfig, WhisperAccentTokenizer)
+    AutoProcessor.register(WhisperAccentConfig, WhisperAccentProcessor)
 
 
 __all__ = [

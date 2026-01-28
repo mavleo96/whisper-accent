@@ -12,6 +12,7 @@ from transformers import (
 from transformers.modeling_outputs import BaseModelOutput
 
 from .configuration import WhisperAccentConfig
+from .modeling_outputs import Seq2SeqLMOutputForWhisperAccent
 
 
 class WhisperAccentModel(WhisperModel):
@@ -132,6 +133,10 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
             init_tokens = torch.cat([init_tokens, accent_ids.unsqueeze(1)], dim=1)
 
         return init_tokens
+
+    # TODO: add accent diversity loss
+    def forward(self, *args, **kwargs):
+        return super().forward(*args, **kwargs)
 
     # TODO: return accent_ids in generation output
     def generate(self, *args, **kwargs):
