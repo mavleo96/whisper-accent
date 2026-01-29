@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers.models.whisper.modeling_whisper import (
-    WhisperEncoderLayer, WhisperForConditionalGeneration)
+    WhisperEncoderLayer,
+    WhisperForConditionalGeneration,
+)
 
 
 class EncoderCodebookAdapter(nn.Module):

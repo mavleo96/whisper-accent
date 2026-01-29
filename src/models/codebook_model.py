@@ -2,7 +2,7 @@ import lightning as L
 import torch
 import torch.nn.functional as F
 from torchmetrics.text import WordErrorRate
-from transformers import WhisperForConditionalGeneration, WhisperProcessor
+from transformers import WhisperProcessor
 
 from src.models.accent_codebook_model import WhisperWithAccentCodebook
 
@@ -138,7 +138,7 @@ if __name__ == "__main__":
     with initialize(config_path="../../configs", version_base=None):
         cfg = compose(config_name="baseline_eval.yaml")
 
-    model = BaseWhisperModel(**cfg.model).to("cuda")
+    model = CodebookWhisperModel(**cfg.model).to("cuda")
     batch = {
         "input_features": torch.randn(16, 80, 3000).to("cuda"),
         "attention_mask": torch.randint(0, 2, (16, 3000)).to("cuda"),

@@ -1,7 +1,7 @@
-from .configuration import *
-from .model import *
-from .processing import *
-from .tokenization import *
+from .configuration import WhisperAccentConfig
+from .model import WhisperAccentModel, WhisperAccentForConditionalGeneration
+from .processing import WhisperAccentProcessor
+from .tokenization import WhisperAccentTokenizer
 
 
 def register_whisper_accent():

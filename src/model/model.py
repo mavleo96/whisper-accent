@@ -12,7 +12,6 @@ from transformers import (
 from transformers.modeling_outputs import BaseModelOutput
 
 from .configuration import WhisperAccentConfig
-from .modeling_outputs import Seq2SeqLMOutputForWhisperAccent
 
 
 class WhisperAccentModel(WhisperModel):

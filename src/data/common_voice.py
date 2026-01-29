@@ -1,11 +1,11 @@
 from pathlib import Path
 
 import lightning as L
-import pandas as pd
 import torch
 from datasets import Audio, Dataset, load_dataset
 from torch.utils.data import DataLoader
 from transformers import WhisperProcessor
+from src.constants import SAMPLING_RATE
 
 NUM_ACCENTS = 14
 
@@ -75,9 +75,9 @@ class CommonVoiceDataModule(L.LightningDataModule):
 
     def prepare_data(self):
         target_dir = self.subset_dir if self.subset_mode else self.full_dir
-        train_path = target_dir / "train_dataset" / "state.json"
-        val_path = target_dir / "val_dataset" / "state.json"
-        test_path = target_dir / "test_dataset" / "state.json"
+        # train_path = target_dir / "train_dataset" / "state.json"
+        # val_path = target_dir / "val_dataset" / "state.json"
+        # test_path = target_dir / "test_dataset" / "state.json"
 
         # if not self.force_prepare and train_path.exists() and val_path.exists() and test_path.exists():
         #     print(f"Processed datasets already exist in {target_dir}, skipping preparation...")
