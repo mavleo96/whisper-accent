@@ -1,17 +1,17 @@
 from transformers import WhisperProcessor, WhisperTokenizer
 
 ACCENTS = {
-    "<|a_us|>": "mainstream us",
-    "<|a_southern_british|>": "southern british",
-    "<|a_irish|>": "irish",
-    "<|a_eastern_european|>": "eastern european",
-    "<|a_italian|>": "italian",
-    "<|a_egyptian|>": "egyptian",
-    "<|a_vietnamese|>": "vietnamese",
-    "<|a_chinese|>": "chinese",
-    "<|a_indian|>": "indian",
-    "<|a_indonesian|>": "indonesian",
-    "<|a_unknown|>": "unknown",
+    "mainstream us": "<|a_us|>",
+    "southern british": "<|a_southern_british|>",
+    "irish": "<|a_irish|>",
+    "eastern european": "<|a_eastern_european|>",
+    "italian": "<|a_italian|>",
+    "egyptian": "<|a_egyptian|>",
+    "vietnamese": "<|a_vietnamese|>",
+    "chinese": "<|a_chinese|>",
+    "indian": "<|a_indian|>",
+    "indonesian": "<|a_indonesian|>",
+    "unknown": "<|a_unknown|>",
 }
 
 
@@ -35,9 +35,9 @@ class WhisperAccentTokenizer(WhisperTokenizer):
 
         # If accent is set, insert accent token id
         self.accent = self.accent.lower()
-        if self.accent not in ACCENTS.values():
+        if self.accent not in ACCENTS:
             raise ValueError(
-                f"Unsupported accent: {self.accent}. Accent should be one of: {list(ACCENTS.values())}."
+                f"Unsupported accent: {self.accent}. Accent should be one of: {list(ACCENTS.keys())}."
             )
         accent_token_id = self.convert_tokens_to_ids(ACCENTS[self.accent])
         if accent_token_id == self.eos_token_id:

@@ -21,14 +21,14 @@ def main():
 
     processor = WhisperAccentProcessor.from_pretrained(args.model_name)
     processor.tokenizer.add_special_tokens(
-        {"additional_special_tokens": list(ACCENTS.keys())}
+        {"additional_special_tokens": list(ACCENTS.values())}
     )
     processor.save_pretrained(args.output_dir)
 
     model = WhisperAccentForConditionalGeneration.from_pretrained(args.model_name)
     model.resize_token_embeddings(len(processor.tokenizer))
     model.generation_config.accent_to_id = {
-        k: v for k, v in processor.tokenizer.vocab.items() if k in ACCENTS.keys()
+        k: v for k, v in processor.tokenizer.vocab.items() if k in ACCENTS.values()
     }
     model.save_pretrained(args.output_dir)
 
