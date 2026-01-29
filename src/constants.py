@@ -1,18 +1,28 @@
+IGNORE_INDEX = -100
 SAMPLING_RATE = 16000
 
-NUM_ACCENTS = 11
-
-ACCENT_TO_ID_MAP = {
-    "Southern British English": 0,
-    "Mainstream US English": 1,
-    "Irish English": 2,
-    "Eastern European": 3,
-    "Italian": 4,
-    "Egyptian": 5,
-    "Vietnamese": 6,
-    "Chinese": 7,
-    "Indian English": 8,
-    "Indonesian English": 9,
-    "Indonesian": 9,
-    "Unknown": 10,
+WESTBROOK_DATASET_ACCENT_MAP = {
+    0: "dutch",
+    1: "german",
+    2: "czech",
+    3: "polish",
+    4: "french",
+    5: "hungarian",
+    6: "finnish",
+    7: "romanian",
+    8: "slovak",
+    9: "spanish",
+    10: "italian",
+    11: "estonian",
+    12: "lithuanian",
+    13: "croatian",
+    14: "slovene",
+    15: "english",
+    16: "scottish",
+    17: "irish",
+    18: "northernirish",
+    19: "indian",
+    20: "vietnamese",
+    21: "canadian",
+    22: "american",
 }

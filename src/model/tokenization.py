@@ -1,17 +1,29 @@
-from transformers import WhisperProcessor, WhisperTokenizer
+from transformers import WhisperTokenizer
 
 ACCENTS = {
-    "mainstream us": "<|a_us|>",
-    "southern british": "<|a_southern_british|>",
+    "english": "<|a_english|>",
+    "american": "<|a_american|>",
+    "scottish": "<|a_scottish|>",
     "irish": "<|a_irish|>",
-    "eastern european": "<|a_eastern_european|>",
-    "italian": "<|a_italian|>",
-    "egyptian": "<|a_egyptian|>",
-    "vietnamese": "<|a_vietnamese|>",
-    "chinese": "<|a_chinese|>",
+    "canadian": "<|a_canadian|>",
+    "northernirish": "<|a_northernirish|>",
     "indian": "<|a_indian|>",
-    "indonesian": "<|a_indonesian|>",
-    "unknown": "<|a_unknown|>",
+    "spanish": "<|a_spanish|>",
+    "dutch": "<|a_dutch|>",
+    "german": "<|a_german|>",
+    "czech": "<|a_czech|>",
+    "polish": "<|a_polish|>",
+    "french": "<|a_french|>",
+    "italian": "<|a_italian|>",
+    "hungarian": "<|a_hungarian|>",
+    "finnish": "<|a_finnish|>",
+    "vietnamese": "<|a_vietnamese|>",
+    "romanian": "<|a_romanian|>",
+    "slovak": "<|a_slovak|>",
+    "estonian": "<|a_estonian|>",
+    "lithuanian": "<|a_lithuanian|>",
+    "croatian": "<|a_croatian|>",
+    "slovene": "<|a_slovene|>",
 }
 
 
