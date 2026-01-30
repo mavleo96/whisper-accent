@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 
 sys.path.append(os.getcwd())
 
@@ -19,17 +20,24 @@ def main():
     )
     args = parser.parse_args()
 
+    # Load processor and model
     processor = WhisperAccentProcessor.from_pretrained(args.model_name)
+    model = WhisperAccentForConditionalGeneration.from_pretrained(args.model_name)
+
+    # Update tokenizer and model
     processor.tokenizer.add_special_tokens(
         {"additional_special_tokens": list(ACCENTS.values())}
     )
-    processor.save_pretrained(args.output_dir)
-
-    model = WhisperAccentForConditionalGeneration.from_pretrained(args.model_name)
+    processor.tokenizer.model_max_length = model.generation_config.max_length
     model.resize_token_embeddings(len(processor.tokenizer))
     model.generation_config.accent_to_id = {
         k: v for k, v in processor.tokenizer.vocab.items() if k in ACCENTS.values()
     }
+
+    # Save processor and model
+    processor.save_pretrained(args.output_dir)
+    with open(os.path.join(args.output_dir, "normalizer.json"), "w") as f:
+        json.dump(processor.tokenizer.english_spelling_normalizer, f)
     model.save_pretrained(args.output_dir)
 
 

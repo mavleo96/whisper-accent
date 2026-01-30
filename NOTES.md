@@ -7,12 +7,17 @@
 - [DONE] add accent tokens to prefix tokens
 
 3. Data Module
-- BOS token is added inside forward method; data collator should skip this in train loader
-- Labels should be padded with -100 in the data collator
-- Can maybe skip decoder attention mask in the data collator
-- https://huggingface.co/datasets/westbrook/English_Accent_DataSet
-- Use BasicTextNormalizer to normalize the text
+- [DONE] BOS token is added inside forward method; data collator should skip this in train loader
+- [DONE] Labels should be padded with -100 in the data collator
+- [DONE] Can maybe skip decoder attention mask in the data collator
+- [DONE] https://huggingface.co/datasets/westbrook/English_Accent_DataSet
+- [DONE] Save normalizer.json in the checkpoint
 
+4. Trainer
+- Training args
+- Seq2SeqTrainer
+- Figure training phases
+- Modify loss in forward method/ or in compute_loss method; pass callable compute_loss_func to trainer
 
 **"Diversity loss"** for embeddings in PyTorch usually refers to a regularization term or auxiliary loss that **encourages diversity** (i.e., prevents collapse or redundancy) among learned embeddings. This is common in representation learning, metric learning, self-supervised learning, or when embeddings represent different items/classes and you want them to be spread out rather than clustered too tightly.
 

@@ -42,9 +42,8 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         # # If decoder_start_token_id is provided and all sequences start with it,
         # # remove it since it will be added during forward pass
         # if self.decoder_start_token_id is not None:
-        #     if labels.shape[0] > 0 and (labels[:, 0] == self.decoder_start_token_id).all().cpu().item():
-        #         labels = labels[:, 1:]
-        #         # Also adjust attention mask
-        #         labels_batch["attention_mask"] = labels_batch["attention_mask"][:, 1:]
+        #     if batch["labels"].shape[0] > 0 and (batch["labels"][:, 0] == self.decoder_start_token_id).all().cpu().item():
+        #         batch["labels"] = batch["labels"][:, 1:]
+        #         batch["attention_mask"] = batch["attention_mask"][:, 1:]
 
         return batch

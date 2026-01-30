@@ -35,7 +35,7 @@ class WhisperDataset(Dataset):
         self.transcribe_token_id = self.tokenizer.convert_tokens_to_ids(
             "<|transcribe|>"
         )
-        self.notimestamps_token_id = self.tokenizer.convert_tokens_to_ids(
+        self.no_timestamps_token_id = self.tokenizer.convert_tokens_to_ids(
             "<|notimestamps|>"
         )
         self.eos_token_id = self.tokenizer.eos_token_id
@@ -66,16 +66,21 @@ class WhisperDataset(Dataset):
         attention_mask = features["attention_mask"][0]
 
         # Process text with tokenizer
-        # Normalize text (Whisper tokenizer has a normalize method)
+        # Normalize text
         text = self.tokenizer.normalize(text)
 
         # Tokenize text labels
         accent_token_id = self._convert_accent_to_token_id(item["accent"])
-        labels = (
-            [accent_token_id, self.notimestamps_token_id]
-            + self.tokenizer(text, add_special_tokens=False).input_ids
-            + [self.eos_token_id]
-        )
+        prefix_tokens = [accent_token_id, self.no_timestamps_token_id]
+        tokens = self.tokenizer(
+            text,
+            add_special_tokens=False,
+            truncation=True,
+            max_length=self.tokenizer.model_max_length - len(prefix_tokens),
+        ).input_ids
+        labels = prefix_tokens + tokens
+        if len(labels) < self.tokenizer.model_max_length:
+            labels.append(self.eos_token_id)
 
         return {
             "labels": labels,
