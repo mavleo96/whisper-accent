@@ -9,13 +9,13 @@ import sys
 import torch
 from datasets import Audio, load_dataset
 from torch.utils.data import DataLoader
-from torchmetrics.text import WordErrorRate
 from tqdm import tqdm
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
 
 sys.path.insert(0, os.getcwd())
 
 from src.constants import SAMPLING_RATE, WESTBROOK_DATASET_ACCENT_MAP
+from src.utils import compute_wer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -59,6 +59,7 @@ def load_model_and_processor(model_name, device, dtype):
     if model.generation_config.is_multilingual:
         model.generation_config.language = "<|en|>"
         model.generation_config.task = "transcribe"
+    model.generation_config.forced_decoder_ids = None
     return model, processor
 
 
@@ -93,25 +94,8 @@ def run_evaluation(model, processor, dataloader, device, dtype):
     }
 
 
-def compute_wer(preds, targets, accents):
-    wer_metric = WordErrorRate()
-    overall_wer = wer_metric(preds, targets).item()
-
-    accent_wers = []
-    for accent_name in WESTBROOK_DATASET_ACCENT_MAP.values():
-        idxs = [i for i, a in enumerate(accents) if a == accent_name]
-        if not idxs:
-            continue
-        sub_preds = [preds[i] for i in idxs]
-        sub_tgts = [targets[i] for i in idxs]
-        accent_wer = wer_metric(sub_preds, sub_tgts).item()
-        accent_wers.append((accent_name, accent_wer, len(idxs)))
-
-    return overall_wer, accent_wers
-
-
 def save_results(
-    output_path, model_name, dataset_name, split, overall_wer, accent_wers, eval_data
+    output_path, model_name, dataset_name, split, overall_wer, wer_per_accent, eval_data
 ):
     predictions = {
         uid: {
@@ -136,7 +120,7 @@ def save_results(
         "dataset": dataset_name,
         "split": split,
         "overall_wer": overall_wer,
-        "accent_wers": accent_wers,
+        "wer_per_accent": wer_per_accent,
         "predictions": predictions,
     }
     out_dir = os.path.dirname(output_path)
@@ -188,11 +172,11 @@ def main():
 
     logger.info("Running evaluation")
     eval_data = run_evaluation(model, processor, dataloader, device, dtype)
-    overall_wer, accent_wers = compute_wer(
+    overall_wer, wer_per_accent = compute_wer(
         eval_data["preds"], eval_data["targets"], eval_data["accents"]
     )
     logger.info("overall_wer=%.4f", overall_wer)
-    for name, wer, n in accent_wers:
+    for name, wer, n in wer_per_accent:
         logger.info("  %s wer=%.4f n=%d", name, wer, n)
 
     if args.output:
@@ -202,7 +186,7 @@ def main():
             args.dataset_name,
             args.split,
             overall_wer,
-            accent_wers,
+            wer_per_accent,
             eval_data,
         )
 

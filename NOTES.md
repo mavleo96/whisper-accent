@@ -18,6 +18,8 @@
 - Seq2SeqTrainer
 - Figure training phases
 - Modify loss in forward method/ or in compute_loss method; pass callable compute_loss_func to trainer
+- Push to hub; strategy all checkpoints; hf argument parser
+- Batch size: 8 x 4 x 1; Steps 10K
 
 **"Diversity loss"** for embeddings in PyTorch usually refers to a regularization term or auxiliary loss that **encourages diversity** (i.e., prevents collapse or redundancy) among learned embeddings. This is common in representation learning, metric learning, self-supervised learning, or when embeddings represent different items/classes and you want them to be spread out rather than clustered too tightly.
 

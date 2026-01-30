@@ -21,6 +21,7 @@ class WhisperDataset(Dataset):
         processor: WhisperProcessor,
         split: str = "train",
         shuffle: bool = False,
+        num_proc: int = 16,
     ):
         super().__init__()
 
@@ -28,9 +29,19 @@ class WhisperDataset(Dataset):
         self.feature_extractor = processor.feature_extractor
 
         # Load data
-        self.raw_dataset = load_dataset(data_path, split=split).cast_column(
+        self.raw_dataset = load_dataset(data_path, split=split, num_proc=num_proc)
+        self.raw_dataset = self.raw_dataset.cast_column(
             "audio", Audio(sampling_rate=SAMPLING_RATE)
         )
+
+        def is_valid_audio(item):
+            try:
+                audio = item["audio"]["array"]
+                return audio is not None and len(audio) > 0
+            except Exception:
+                return False
+
+        self.raw_dataset = self.raw_dataset.filter(is_valid_audio, num_proc=num_proc)
 
         # Token ids
         self.decoder_start_token_id = self.tokenizer.convert_tokens_to_ids(
