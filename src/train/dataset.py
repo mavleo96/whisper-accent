@@ -1,4 +1,4 @@
-from typing import Dict
+import logging
 
 import torch
 from datasets import Audio, load_dataset
@@ -7,6 +7,9 @@ from transformers import WhisperProcessor
 
 from src.constants import SAMPLING_RATE, WESTBROOK_DATASET_ACCENT_MAP
 from src.model.tokenization import ACCENTS
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class WhisperDataset(Dataset):
@@ -43,12 +46,12 @@ class WhisperDataset(Dataset):
         if shuffle:
             self.raw_dataset.shuffle()
 
-        print(f"Loaded {len(self.raw_dataset)} examples for Whisper fine-tuning")
+        logger.info(f"Loaded {len(self.raw_dataset)} examples for Whisper fine-tuning")
 
     def __len__(self) -> int:
         return len(self.raw_dataset)
 
-    def __getitem__(self, i: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, i: int) -> dict[str, torch.Tensor]:
         item = self.raw_dataset[i]
 
         # Extract audio and text

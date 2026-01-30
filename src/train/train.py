@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 import torch
@@ -11,7 +10,7 @@ from src.constants import IGNORE_INDEX
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     processor: WhisperProcessor
-    decoder_start_token_id: Optional[int]
+    decoder_start_token_id: int | None
 
     def __call__(self, features):
         batch = {}
@@ -42,7 +41,13 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         # # If decoder_start_token_id is provided and all sequences start with it,
         # # remove it since it will be added during forward pass
         # if self.decoder_start_token_id is not None:
-        #     if batch["labels"].shape[0] > 0 and (batch["labels"][:, 0] == self.decoder_start_token_id).all().cpu().item():
+        #     check_bos_token = (
+        #         (batch["labels"][:, 0] == self.decoder_start_token_id)
+        #         .all()
+        #         .cpu()
+        #         .item()
+        #     )
+        #     if batch["labels"].shape[0] > 0 and check_bos_token:
         #         batch["labels"] = batch["labels"][:, 1:]
         #         batch["attention_mask"] = batch["attention_mask"][:, 1:]
 

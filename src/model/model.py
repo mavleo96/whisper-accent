@@ -1,5 +1,3 @@
-from typing import Optional, Union
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -35,10 +33,10 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
 
     def detect_accent(
         self,
-        decoder_input_ids: Optional[torch.LongTensor] = None,
-        input_features: Optional[torch.FloatTensor] = None,
-        encoder_outputs: Optional[Union[torch.FloatTensor, BaseModelOutput]] = None,
-        generation_config: Optional[GenerationConfig] = None,
+        decoder_input_ids: torch.LongTensor | None = None,
+        input_features: torch.FloatTensor | None = None,
+        encoder_outputs: torch.FloatTensor | BaseModelOutput | None = None,
+        generation_config: GenerationConfig | None = None,
         num_segment_frames: int = 3000,
     ) -> torch.LongTensor:
         if input_features is None and encoder_outputs is None:
@@ -47,7 +45,8 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
             )
         elif input_features is not None and encoder_outputs is not None:
             raise ValueError(
-                "Make sure to specify only one of `input_features` or `encoder_outputs` - not both!"
+                "Make sure to specify only one of `input_features` or `encoder_outputs`"
+                " - not both!"
             )
         elif input_features is not None:
             inputs = {"input_features": input_features[:, :, :num_segment_frames]}
@@ -97,20 +96,22 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
             last_token == self.generation_config.no_timestamps_token_id
         ).item()
 
-        # Consistency check between return_timestamps flag and presence of no_timestamps_token_id
+        # Consistency check: return_timestamps flag vs. no_timestamps_token_id presence
         if not self.generation_config.return_timestamps and not has_no_timestamps_token:
             raise ValueError(
-                "Generation config return_timestamps is set to False, but the init tokens do not end with no_timestamps_token_id."
+                "Generation config return_timestamps is set to False, but the init"
+                " tokens do not end with no_timestamps_token_id."
             )
         if self.generation_config.return_timestamps and has_no_timestamps_token:
             raise ValueError(
-                "Generation config return_timestamps is set to True, but the init tokens end with no_timestamps_token_id."
+                "Generation config return_timestamps is set to True, but the init"
+                " tokens end with no_timestamps_token_id."
             )
 
-        # If has no_timestamps_token_id, use init_tokens without last token as decoder input ids
+        # If has no_timestamps_token_id, use init_tokens without last token
         if has_no_timestamps_token:
             decoder_input_ids = init_tokens[:, :-1]
-        # If no no_timestamps_token_id, use init_tokens as decoder input ids
+        # If no no_timestamps_token_id, use init_tokens
         else:
             decoder_input_ids = init_tokens
         # Detect accent
@@ -122,7 +123,8 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
             num_segment_frames=num_segment_frames,
         )
 
-        # Insert accent ids before no_timestamps_token_id; if return_timestamps is set to True, insert at last index
+        # Insert accent ids before no_timestamps_token_id; if return_timestamps is set
+        # to True, insert at last index
         if has_no_timestamps_token:
             init_tokens = torch.cat(
                 [init_tokens[:, :-1], accent_ids.unsqueeze(1), init_tokens[:, -1:]],
@@ -133,14 +135,9 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
 
         return init_tokens
 
-    # TODO: add accent diversity loss
+    # TODO: modify loss; add accent_loss and accent embedding diversity loss
     def forward(self, *args, **kwargs):
         return super().forward(*args, **kwargs)
-
-    # TODO: return accent_ids in generation output
-    def generate(self, *args, **kwargs):
-        output = super().generate(*args, **kwargs)
-        return output
 
 
 __all__ = [

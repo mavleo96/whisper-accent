@@ -128,6 +128,7 @@ def save_results(
             eval_data["raw_targets"],
             eval_data["targets"],
             eval_data["accents"],
+            strict=True,
         )
     }
     results = {

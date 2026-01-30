@@ -49,7 +49,8 @@ class WhisperAccentTokenizer(WhisperTokenizer):
         self.accent = self.accent.lower()
         if self.accent not in ACCENTS:
             raise ValueError(
-                f"Unsupported accent: {self.accent}. Accent should be one of: {list(ACCENTS.keys())}."
+                f"Unsupported accent: {self.accent}. Accent should be"
+                f" one of: {list(ACCENTS.keys())}."
             )
         accent_token_id = self.convert_tokens_to_ids(ACCENTS[self.accent])
         if accent_token_id == self.eos_token_id:
@@ -57,7 +58,7 @@ class WhisperAccentTokenizer(WhisperTokenizer):
                 f"Accent token {ACCENTS[self.accent]} was not found in the tokenizer."
             )
 
-        # if predict_timestamps is not set, insert accent token id before timestamps token
+        # if predict_timestamps is not set, insert accent token before timestamps token
         if not self.predict_timestamps:
             bos_sequence.insert(-1, accent_token_id)
         else:

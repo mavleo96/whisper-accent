@@ -1,5 +1,5 @@
 from .configuration import WhisperAccentConfig
-from .model import WhisperAccentModel, WhisperAccentForConditionalGeneration
+from .model import WhisperAccentForConditionalGeneration, WhisperAccentModel
 from .processing import WhisperAccentProcessor
 from .tokenization import WhisperAccentTokenizer
 
