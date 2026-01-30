@@ -1,5 +1,0 @@
-model_name: "openai/whisper-tiny.en"
-
-optimizer_config:
-  lr: 1e-6
-  weight_decay: 1
