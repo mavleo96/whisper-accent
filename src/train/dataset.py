@@ -1,11 +1,13 @@
 import logging
+from dataclasses import dataclass
 
+import numpy as np
 import torch
 from datasets import Audio, load_dataset
 from torch.utils.data import Dataset
 from transformers import WhisperProcessor
 
-from src.constants import SAMPLING_RATE, WESTBROOK_DATASET_ACCENT_MAP
+from src.constants import IGNORE_INDEX, SAMPLING_RATE, WESTBROOK_DATASET_ACCENT_MAP
 from src.model.tokenization import ACCENTS
 
 logging.basicConfig(level=logging.INFO)
@@ -95,3 +97,47 @@ class WhisperDataset(Dataset):
         return self.tokenizer.convert_tokens_to_ids(
             ACCENTS[WESTBROOK_DATASET_ACCENT_MAP[accent_idx]]
         )
+
+
+@dataclass
+class DataCollatorSpeechSeq2SeqWithPadding:
+    processor: WhisperProcessor
+    decoder_start_token_id: int | None
+
+    def __call__(self, features):
+        batch = {}
+        # Pad audio input features
+        input_features_list = [
+            {"input_features": feature["input_features"]} for feature in features
+        ]
+        batch["input_features"] = self.processor.feature_extractor.pad(
+            input_features_list, return_tensors="pt"
+        )["input_features"]
+
+        # Merge attention masks
+        batch["attention_mask"] = torch.tensor(
+            np.array([i["attention_mask"] for i in features])
+        )
+
+        # Pad labels
+        labels_list = [{"input_ids": feature["labels"]} for feature in features]
+        labels = self.processor.tokenizer.pad(
+            labels_list, return_tensors="pt", return_attention_mask=True
+        )
+
+        # Replace padding tokens in labels with -100 to ignore in loss computation
+        batch["labels"] = labels["input_ids"].masked_fill(
+            labels["attention_mask"].ne(1), IGNORE_INDEX
+        )
+
+        # # If decoder_start_token_id is provided and all sequences start with it,
+        # # remove it since it will be added during forward pass
+        # if self.decoder_start_token_id is not None:
+        #     check_bos_token = (
+        #         batch["labels"].eq(self.decoder_start_token_id)[:, 0].all().item()
+        #     )
+        #     if batch["labels"].shape[0] > 0 and check_bos_token:
+        #         batch["labels"] = batch["labels"][:, 1:]
+        #         batch["attention_mask"] = batch["attention_mask"][:, 1:]
+
+        return batch
