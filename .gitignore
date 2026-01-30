@@ -199,3 +199,6 @@ wandb/
 
 # Data
 data/*
+
+# Results
+results/

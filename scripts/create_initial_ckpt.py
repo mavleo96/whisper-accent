@@ -1,8 +1,10 @@
+#!/usr/bin/env python3
+
+import json
 import os
 import sys
-import json
 
-sys.path.append(os.getcwd())
+sys.path.insert(0, os.getcwd())
 
 import argparse
 
