@@ -1,5 +1,6 @@
 [tool.ruff]
 exclude = [
+    "notebooks",
     ".bzr",
     ".direnv",
     ".eggs",
