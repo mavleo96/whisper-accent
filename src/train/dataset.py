@@ -7,7 +7,12 @@ from datasets import Audio, load_dataset
 from torch.utils.data import Dataset
 from transformers import WhisperProcessor
 
-from src.constants import IGNORE_INDEX, SAMPLING_RATE, WESTBROOK_DATASET_ACCENT_MAP
+from src.constants import (
+    IGNORE_INDEX,
+    MAX_LENGTH,
+    SAMPLING_RATE,
+    WESTBROOK_DATASET_ACCENT_MAP,
+)
 from src.model.tokenization import ACCENTS
 
 logging.basicConfig(level=logging.INFO)
@@ -42,6 +47,8 @@ class WhisperDataset(Dataset):
                 return False
 
         self.raw_dataset = self.raw_dataset.filter(is_valid_audio, num_proc=num_proc)
+        if split == "validation":
+            self.raw_dataset = self.raw_dataset.select(range(100))
 
         # Token ids
         self.decoder_start_token_id = self.tokenizer.convert_tokens_to_ids(
@@ -92,10 +99,10 @@ class WhisperDataset(Dataset):
             text,
             add_special_tokens=False,
             truncation=True,
-            max_length=self.tokenizer.model_max_length - len(prefix_tokens),
+            max_length=MAX_LENGTH - len(prefix_tokens),
         ).input_ids
         labels = prefix_tokens + tokens
-        if len(labels) < self.tokenizer.model_max_length:
+        if len(labels) < MAX_LENGTH:
             labels.append(self.eos_token_id)
 
         return {
