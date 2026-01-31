@@ -135,10 +135,6 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
 
         return init_tokens
 
-    # TODO: modify loss; add accent_loss and accent embedding diversity loss
-    def forward(self, *args, **kwargs):
-        return super().forward(*args, **kwargs)
-
 
 __all__ = [
     "WhisperAccentModel",

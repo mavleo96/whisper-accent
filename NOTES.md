@@ -14,12 +14,29 @@
 - [DONE] Save normalizer.json in the checkpoint
 
 4. Trainer
-- Training args
-- Seq2SeqTrainer
-- Figure training phases
-- Modify loss in forward method/ or in compute_loss method; pass callable compute_loss_func to trainer
-- Push to hub; strategy all checkpoints; hf argument parser
-- Batch size: 8 x 4 x 1; Steps 10K
+- Args:
+  - Training args: add lambda_accent_loss & lambda_diversity_loss
+  - Dataset args: data_path, num_proc, shuffle
+  - Push to hub; strategy all checkpoints; hf argument parser
+- Trainer:
+  - subclass Seq2SeqTrainer and override compute loss method (to log each loss separately)
+  - override compute metrics method (to compute wer & accent accuracy)
+  - callback to compute final wer overall and per accent
+  - need to do retrieve_init_tokens for accent accuracy since generate prediction does not return init_tokens
+  - train logging; losses: loss, transcription, accent, embedding_diversity
+  - eval logging; losses: loss, transcription, accent, / metrics: wer, accent accuracy
+- Training Phases:
+  - Batch size: 8 x 4 x 1 = 32
+  - Steps 10K; prev runs were 2K steps
+  - tiny is too small; we need to use atleast medium or largev3
+  - might need to pretrain to learn english accent embeddings (actually american/canadian)
+  - optimizer: separate learning rates; embedding learning rate needs to start high and decay fast
+- Model:
+  - max_length: 448 vs 255
+
+
+
+# ADDITIONAL NOTES
 
 **"Diversity loss"** for embeddings in PyTorch usually refers to a regularization term or auxiliary loss that **encourages diversity** (i.e., prevents collapse or redundancy) among learned embeddings. This is common in representation learning, metric learning, self-supervised learning, or when embeddings represent different items/classes and you want them to be spread out rather than clustered too tightly.
 
@@ -123,5 +140,3 @@
 | Prevent embedding collapse                | Add small diversity term + normalization + large batch    |
 | Domain adaptation diversity               | PyTorch-Adapt DiversityLoss                                |
 | Orthogonal / maximally diverse embeddings | Cosine similarity minimization + normalization             |
-
-If you can tell me more about your specific task (e.g. contrastive learning? classification? self-supervised? face recognition? text embeddings?), I can give a more targeted code example. 😄
