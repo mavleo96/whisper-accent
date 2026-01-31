@@ -113,7 +113,6 @@ class WhisperDataset(Dataset):
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     processor: WhisperProcessor
-    decoder_start_token_id: int | None
 
     def __call__(self, features):
         batch = {}
@@ -141,14 +140,11 @@ class DataCollatorSpeechSeq2SeqWithPadding:
             labels["attention_mask"].ne(1), IGNORE_INDEX
         )
 
-        # # If decoder_start_token_id is provided and all sequences start with it,
-        # # remove it since it will be added during forward pass
-        # if self.decoder_start_token_id is not None:
-        #     check_bos_token = (
-        #         batch["labels"].eq(self.decoder_start_token_id)[:, 0].all().item()
-        #     )
-        #     if batch["labels"].shape[0] > 0 and check_bos_token:
-        #         batch["labels"] = batch["labels"][:, 1:]
-        #         batch["attention_mask"] = batch["attention_mask"][:, 1:]
+        # # Remove bos token since it will be added during forward pass
+        # bos_token_id = self.processor.tokenizer.bos_token_id
+        # check_bos_token = batch["labels"].eq(bos_token_id)[:, 0].all().item()
+        # if batch["labels"].shape[0] > 0 and check_bos_token:
+        #     batch["labels"] = batch["labels"][:, 1:]
+        #     batch["attention_mask"] = batch["attention_mask"][:, 1:]
 
         return batch

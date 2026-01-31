@@ -14,6 +14,8 @@ from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
 
 sys.path.insert(0, os.getcwd())
 
+from functools import partial
+
 from src.constants import SAMPLING_RATE, WESTBROOK_DATASET_ACCENT_MAP
 from src.utils import compute_wer
 
@@ -32,24 +34,21 @@ def collate_fn(batch):
     }
 
 
-def make_preprocess_fn(processor):
-    def preprocess(item):
-        input_values = processor.feature_extractor(
-            item["audio"]["array"],
-            sampling_rate=SAMPLING_RATE,
-            return_attention_mask=True,
-        )
-        raw_text = item["raw_text"]
-        return {
-            "id": item["audio_id"],
-            "input_features": input_values.input_features[0],
-            "attention_mask": input_values.attention_mask[0],
-            "raw_target": raw_text,
-            "target": processor.tokenizer.normalize(raw_text),
-            "accent_name": WESTBROOK_DATASET_ACCENT_MAP[item["accent"]],
-        }
-
-    return preprocess
+def preprocess(item, processor):
+    input_values = processor.feature_extractor(
+        item["audio"]["array"],
+        sampling_rate=SAMPLING_RATE,
+        return_attention_mask=True,
+    )
+    raw_text = item["raw_text"]
+    return {
+        "id": item["audio_id"],
+        "input_features": input_values.input_features[0],
+        "attention_mask": input_values.attention_mask[0],
+        "raw_target": raw_text,
+        "target": processor.tokenizer.normalize(raw_text),
+        "accent_name": WESTBROOK_DATASET_ACCENT_MAP[item["accent"]],
+    }
 
 
 def load_model_and_processor(model_name, device, dtype):
@@ -158,7 +157,7 @@ def main():
     dataset = load_dataset(args.dataset_name, split=args.split)
     dataset = dataset.cast_column("audio", Audio(sampling_rate=SAMPLING_RATE))
     dataset = dataset.map(
-        make_preprocess_fn(processor),
+        partial(preprocess, processor=processor),
         remove_columns=dataset.column_names,
         desc="Preprocessing",
     )

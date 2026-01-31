@@ -18,6 +18,7 @@
   - Training args: add lambda_accent_loss & lambda_diversity_loss
   - Dataset args: data_path, num_proc, shuffle
   - Push to hub; strategy all checkpoints; hf argument parser
+  - use model_init arg to initialize model
 - Trainer:
   - subclass Seq2SeqTrainer and override compute loss method (to log each loss separately)
   - override compute metrics method (to compute wer & accent accuracy)
@@ -25,6 +26,9 @@
   - need to do retrieve_init_tokens for accent accuracy since generate prediction does not return init_tokens
   - train logging; losses: loss, transcription, accent, embedding_diversity
   - eval logging; losses: loss, transcription, accent, / metrics: wer, accent accuracy
+  - merge and unload model after training as final model
+  - AutoModel ; if base model is openai/whisper then loading won't work because of class mismatch; if adapter_config.json is present then loading will not work
+    - solution:
 - Training Phases:
   - Batch size: 8 x 4 x 1 = 32
   - Steps 10K; prev runs were 2K steps
@@ -33,6 +37,7 @@
   - optimizer: separate learning rates; embedding learning rate needs to start high and decay fast
 - Model:
   - max_length: 448 vs 255
+  - proj_out: ideal to exclude from LoRA training; proj_out is tied to decoder.embed_tokens; resize token embeddings weight tying is not working
 
 
 

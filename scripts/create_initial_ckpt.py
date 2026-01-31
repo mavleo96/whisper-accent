@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import json
 import os
 import sys
 
@@ -28,7 +27,10 @@ def main():
 
     # Update tokenizer and model
     processor.tokenizer.add_special_tokens(
-        {"additional_special_tokens": list(ACCENTS.values())}
+        {
+            "additional_special_tokens": list(ACCENTS.values()),
+            "bos_token": "<|startoftranscript|>",
+        }
     )
     processor.tokenizer.model_max_length = model.generation_config.max_length
     model.resize_token_embeddings(len(processor.tokenizer))
@@ -38,8 +40,6 @@ def main():
 
     # Save processor and model
     processor.save_pretrained(args.output_dir)
-    with open(os.path.join(args.output_dir, "normalizer.json"), "w") as f:
-        json.dump(processor.tokenizer.english_spelling_normalizer, f)
     model.save_pretrained(args.output_dir)
 
 
