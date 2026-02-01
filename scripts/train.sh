@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Model and Dataset Arguments
+export MODEL_TYPE="whisper_accent"
 export MODEL_NAME="openai/whisper-tiny.en"
 export IS_MULTILINGUAL="False"
 export DATASET_NAME="westbrook/English_Accent_DataSet"
@@ -17,6 +18,7 @@ export WANDB_ENTITY="mavleo96-team"
 # optim_args={"betas": (0.9, 0.999), "eps": 1e-8, "weight_decay": 0.01},
 
 python -m src.train \
+    --model_type $MODEL_TYPE \
     --model_name_or_path $MODEL_NAME \
     --is_multilingual $IS_MULTILINGUAL \
     --train_data_path $DATASET_NAME \
@@ -33,9 +35,16 @@ python -m src.train \
     --weight_decay 0.01 \
     --max_grad_norm 1.0 \
     --max_steps 10000 \
-    --warmup_steps 500 \
+    --warmup_steps 0.05 \
     --optim adamw_torch \
     --lr_scheduler_type cosine \
+    --lora_enable True \
+    --lora_r 32 \
+    --lora_alpha 64 \
+    --lora_dropout 0.05 \
+    --lora_bias "none" \
+    --use_rslora True \
+    --task_type "SEQ_2_SEQ_LM" \
     --eval_strategy steps \
     --eval_steps 100 \
     --predict_with_generate True \

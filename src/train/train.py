@@ -10,6 +10,7 @@ from src.model.tokenization import ACCENTS
 
 @dataclass
 class ModelArguments:
+    model_type: str = "whisper_accent"
     model_name_or_path: str = "openai/whisper-tiny.en"
     is_multilingual: bool = False
 

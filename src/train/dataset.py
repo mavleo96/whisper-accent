@@ -26,6 +26,7 @@ class WhisperDataset(Dataset):
         self,
         data_path: str,
         processor: WhisperProcessor,
+        is_multilingual: bool = False,
         split: str = "train",
         shuffle: bool = False,
         num_proc: int = 16,
@@ -95,6 +96,10 @@ class WhisperDataset(Dataset):
         # Tokenize text labels
         accent_token_id = self._convert_accent_to_token_id(item["accent"])
         prefix_tokens = [accent_token_id, self.no_timestamps_token_id]
+        if self.is_multilingual:
+            language_token_id = self.tokenizer.convert_tokens_to_ids("<|en|>")
+            transcribe_token_id = self.tokenizer.convert_tokens_to_ids("<|transcribe|>")
+            prefix_tokens = [language_token_id, transcribe_token_id, *prefix_tokens]
         tokens = self.tokenizer(
             text,
             add_special_tokens=False,
