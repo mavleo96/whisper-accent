@@ -15,10 +15,9 @@
 
 4. Trainer
 - Args:
-  - Training args: add lambda_accent_loss & lambda_diversity_loss
-  - Dataset args: data_path, num_proc, shuffle
-  - Push to hub; strategy all checkpoints; hf argument parser
-  - use model_init arg to initialize model
+  - [DONE] Training args: add lambda_accent_loss & lambda_diversity_loss
+  - [DONE] Dataset args: data_path, num_proc, shuffle
+  - [DONE] Push to hub; strategy all checkpoints; hf argument parser
 - Trainer:
   - subclass Seq2SeqTrainer and override compute loss method (to log each loss separately)
   - override compute metrics method (to compute wer & accent accuracy)
@@ -30,8 +29,8 @@
   - AutoModel ; if base model is openai/whisper then loading won't work because of class mismatch; if adapter_config.json is present then loading will not work
     - solution:
 - Training Phases:
-  - Batch size: 8 x 4 x 1 = 32
-  - Steps 10K; prev runs were 2K steps
+  - [DONE] Batch size: 8 x 4 x 1 = 32
+  - [DONE] Steps 10K; prev runs were 2K steps
   - tiny is too small; we need to use atleast medium or largev3
   - might need to pretrain to learn english accent embeddings (actually american/canadian)
   - optimizer: separate learning rates; embedding learning rate needs to start high and decay fast

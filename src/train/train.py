@@ -1,10 +1,34 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import torch.nn as nn
 from peft import LoraConfig, get_peft_model
+from transformers import Seq2SeqTrainingArguments
 
 from src.model import WhisperAccentForConditionalGeneration, WhisperAccentProcessor
 from src.model.tokenization import ACCENTS
+
+
+@dataclass
+class ModelArguments:
+    model_name_or_path: str = "openai/whisper-tiny.en"
+    is_multilingual: bool = False
+
+
+@dataclass
+class DatasetArguments:
+    train_data_path: str = "westbrook/English_Accent_DataSet"
+    eval_data_path: str = "westbrook/English_Accent_DataSet"
+    num_proc: int = 16
+
+
+@dataclass
+class WhisperAccentTrainingArguments(Seq2SeqTrainingArguments):
+    lambda_accent_loss: float = 1.0
+    lambda_diversity_loss: float = 1.0
+    report_to: None | str | list[str] = field(
+        default=None,
+        metadata={"help": "The list of integrations to report logs to.", "nargs": "+"},
+    )
 
 
 @dataclass
@@ -16,12 +40,6 @@ class LoraArguments:
     lora_bias: str = "none"
     use_rslora: bool = True
     task_type: str = "SEQ_2_SEQ_LM"
-
-
-@dataclass
-class ModelArguments:
-    model_name_or_path: str = "openai/whisper-tiny.en"
-    is_multilingual: bool = False
 
 
 def processor_init(model_args: ModelArguments) -> WhisperAccentProcessor:

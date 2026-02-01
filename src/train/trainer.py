@@ -22,9 +22,9 @@ def compute_metrics(
     return {"wer": wer}
 
 
-class WhisperAccentSeq2SeqTrainer(Seq2SeqTrainer):
-    def __init__(self, *args, **kwargs) -> None:
+class WhisperAccentTrainer(Seq2SeqTrainer):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
 
-__all__ = ["WhisperAccentSeq2SeqTrainer"]
+__all__ = ["WhisperAccentTrainer"]

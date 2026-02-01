@@ -21,6 +21,8 @@ from src.utils import compute_wer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+# Suppress HTTP request logging from httpx
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def collate_fn(batch):
