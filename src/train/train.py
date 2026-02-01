@@ -66,6 +66,7 @@ def model_init(
     model = WhisperAccentForConditionalGeneration.from_pretrained(
         model_args.model_name_or_path
     )
+    model.config.architectures = [model.__class__.__name__]
     model.resize_token_embeddings(len(processor.tokenizer))
     model.generation_config.accent_to_id = {
         k: v for k, v in processor.tokenizer.vocab.items() if k in ACCENTS.values()
