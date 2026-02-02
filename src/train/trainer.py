@@ -112,7 +112,7 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
             {},
         )
         preds = output[:, -1] if return_timestamps else output[:, -2]
-        labels = inputs["labels"][:, 0] if is_multilingual else inputs["labels"][:, 1]
+        labels = inputs["labels"][:, 2] if is_multilingual else inputs["labels"][:, 0]
         min_label = min(self.model.generation_config.accent_to_id.values())
         return preds - min_label, labels - min_label
 
