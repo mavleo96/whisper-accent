@@ -7,7 +7,7 @@ import os
 import sys
 
 import torch
-from datasets import Audio, load_dataset
+from datasets import Audio, Value, load_dataset
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
@@ -30,7 +30,7 @@ def collate_fn(batch):
         "id": [b["id"] for b in batch],
         "input_features": torch.tensor([b["input_features"] for b in batch]),
         "attention_mask": torch.tensor([b["attention_mask"] for b in batch]),
-        "accent_name": [b["accent_name"] for b in batch],
+        "accent": [b["accent"] for b in batch],
         "target": [b["target"] for b in batch],
         "raw_target": [b["raw_target"] for b in batch],
     }
@@ -49,7 +49,7 @@ def preprocess(item, processor):
         "attention_mask": input_values.attention_mask[0],
         "raw_target": raw_text,
         "target": processor.tokenizer.normalize(raw_text),
-        "accent_name": WESTBROOK_DATASET_ACCENT_MAP[item["accent"]],
+        "accent": item["accent"],
     }
 
 
@@ -83,7 +83,7 @@ def run_evaluation(model, processor, dataloader, device, dtype):
         all_preds.extend(preds)
         all_raw_targets.extend(batch["raw_target"])
         all_targets.extend(batch["target"])
-        all_accents.extend(batch["accent_name"])
+        all_accents.extend(batch["accent"])
 
     return {
         "ids": all_ids,
@@ -154,11 +154,10 @@ def main():
     logger.info("Loading dataset: %s split=%s", args.dataset_name, args.split)
     dataset = load_dataset(args.dataset_name, split=args.split)
     dataset = dataset.cast_column("audio", Audio(sampling_rate=SAMPLING_RATE))
-    dataset = dataset.map(
-        partial(preprocess, processor=processor),
-        remove_columns=dataset.column_names,
-        desc="Preprocessing",
-    )
+    dataset = dataset.cast_column("accent", Value("string"))
+    dataset = dataset.map(lambda x: {"accent": WESTBROOK_DATASET_ACCENT_MAP[int(x["accent"])]})
+    dataset = dataset.map(partial(preprocess, processor=processor), desc="Preprocessing")
+    dataset = dataset.select(range(100))
 
     dataloader = DataLoader(
         dataset,
@@ -173,8 +172,8 @@ def main():
         eval_data["preds"], eval_data["targets"], eval_data["accents"]
     )
     logger.info("overall_wer=%.4f", overall_wer)
-    for name, wer, n in wer_per_accent:
-        logger.info("  %s wer=%.4f n=%d", name, wer, n)
+    for name, wer_info in wer_per_accent.items():
+        logger.info("  %s wer=%.4f n=%d", name, wer_info["wer"], wer_info["n"])
 
     if args.output:
         save_results(

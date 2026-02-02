@@ -18,12 +18,15 @@ def compute_wer(preds, targets, accents=None):
         preds_by_accent.setdefault(a, []).append(p)
         tgts_by_accent.setdefault(a, []).append(t)
 
-    wer_per_accent = []
+    wer_per_accent = {}
     for accent_name in sorted(set(accents)):
         accent_wer = word_error_rate(
             preds_by_accent[accent_name], tgts_by_accent[accent_name]
         ).item()
-        wer_per_accent.append((accent_name, accent_wer, len(preds_by_accent[accent_name])))
+        wer_per_accent[accent_name] = {
+            "wer": accent_wer,
+            "n": len(preds_by_accent[accent_name]),
+        }
 
     return overall_wer, wer_per_accent
 
