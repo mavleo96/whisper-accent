@@ -88,6 +88,10 @@ def model_init(
     )
     model.tie_weights()
 
+    # Update bos token id; https://github.com/huggingface/transformers/issues/24342
+    model.config.bos_token_id = processor.tokenizer.bos_token_id
+    model.generation_config.bos_token_id = processor.tokenizer.bos_token_id
+
     # Update generation config; https://github.com/openai/whisper/discussions/2094
     if model.generation_config.is_multilingual:
         model.generation_config.language = "en"
