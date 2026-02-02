@@ -36,6 +36,10 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
 
         if compute_metrics == "all":
             compute_metrics = ["wer", "accent_accuracy"]
+        elif compute_metrics == "none":
+            compute_metrics = []
+        else:
+            compute_metrics = [compute_metrics]
 
         self.metrics_accumulators = {}
         for metric in compute_metrics:
