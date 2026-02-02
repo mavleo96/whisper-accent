@@ -2,7 +2,7 @@
 
 # Model and Dataset Arguments
 export MODEL_TYPE="whisper_accent"
-export MODEL_NAME="openai/whisper-tiny.en"
+export BASE_MODEL_NAME="openai/whisper-tiny.en"
 export IS_MULTILINGUAL="False"
 export DATASET_NAME="westbrook/English_Accent_DataSet"
 
@@ -15,11 +15,9 @@ export HUB_MODEL_ID="mavleo96/whisper-accent-tiny.en"
 export WANDB_PROJECT="whisper-accent"
 export WANDB_ENTITY="mavleo96-team"
 
-# optim_args={"betas": (0.9, 0.999), "eps": 1e-8, "weight_decay": 0.01},
-
 python -m src.train \
     --model_type $MODEL_TYPE \
-    --model_name_or_path $MODEL_NAME \
+    --base_model_name_or_path $BASE_MODEL_NAME \
     --is_multilingual $IS_MULTILINGUAL \
     --train_data_path $DATASET_NAME \
     --eval_data_path $DATASET_NAME \
@@ -31,13 +29,16 @@ python -m src.train \
     --tf32 False \
     --bf16 True \
     --fp16 False \
-    --learning_rate 1e-5 \
-    --weight_decay 0.01 \
-    --max_grad_norm 1.0 \
-    --max_steps 10000 \
-    --warmup_steps 0.05 \
+    --lambda_accent_loss 0.1 \
+    --lambda_diversity_loss 0.01 \
     --optim adamw_torch \
+    --learning_rate 1e-5 \
+    --embedding_learning_rate 1e-4 \
+    --weight_decay 0.01 \
     --lr_scheduler_type cosine \
+    --warmup_steps 0.05 \
+    --max_steps 10000 \
+    --max_grad_norm 1.0 \
     --lora_enable True \
     --lora_r 32 \
     --lora_alpha 64 \

@@ -1,9 +1,10 @@
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import torch
-from datasets import Audio, load_dataset
+from datasets import Audio, Value, load_dataset
 from torch.utils.data import Dataset
 from transformers import WhisperProcessor
 
@@ -13,7 +14,7 @@ from src.constants import (
     SAMPLING_RATE,
     WESTBROOK_DATASET_ACCENT_MAP,
 )
-from src.model.tokenization import ACCENTS
+from src.model.tokenization import ACCENTS, WhisperAccentTokenizer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,9 +26,9 @@ class WhisperDataset(Dataset):
     def __init__(
         self,
         data_path: str,
+        split: str,
         processor: WhisperProcessor,
-        is_multilingual: bool = False,
-        split: str = "train",
+        multilingual_model: bool = False,
         shuffle: bool = False,
         num_proc: int = 16,
     ):
@@ -35,11 +36,16 @@ class WhisperDataset(Dataset):
 
         self.tokenizer = processor.tokenizer
         self.feature_extractor = processor.feature_extractor
+        self.multilingual_model = multilingual_model
 
         # Load data
         self.raw_dataset = load_dataset(data_path, split=split, num_proc=num_proc)
         self.raw_dataset = self.raw_dataset.cast_column(
             "audio", Audio(sampling_rate=SAMPLING_RATE)
+        )
+        self.raw_dataset = self.raw_dataset.cast_column("accent", Value("string"))
+        self.raw_dataset = self.raw_dataset.map(
+            lambda x: {"accent": WESTBROOK_DATASET_ACCENT_MAP[int(x["accent"])]}
         )
 
         def is_valid_audio(item):
@@ -55,7 +61,6 @@ class WhisperDataset(Dataset):
         self.decoder_start_token_id = self.tokenizer.convert_tokens_to_ids(
             "<|startoftranscript|>"
         )
-        self.translate_token_id = self.tokenizer.convert_tokens_to_ids("<|translate|>")
         self.transcribe_token_id = self.tokenizer.convert_tokens_to_ids(
             "<|transcribe|>"
         )
@@ -63,6 +68,7 @@ class WhisperDataset(Dataset):
             "<|notimestamps|>"
         )
         self.eos_token_id = self.tokenizer.eos_token_id
+        self.en_lang_token_id = self.tokenizer.convert_tokens_to_ids("<|en|>")
 
         if shuffle:
             self.raw_dataset.shuffle()
@@ -94,12 +100,7 @@ class WhisperDataset(Dataset):
         text = self.tokenizer.normalize(text)
 
         # Tokenize text labels
-        accent_token_id = self._convert_accent_to_token_id(item["accent"])
-        prefix_tokens = [accent_token_id, self.no_timestamps_token_id]
-        if self.is_multilingual:
-            language_token_id = self.tokenizer.convert_tokens_to_ids("<|en|>")
-            transcribe_token_id = self.tokenizer.convert_tokens_to_ids("<|transcribe|>")
-            prefix_tokens = [language_token_id, transcribe_token_id, *prefix_tokens]
+        prefix_tokens = self.get_prefix_tokens(item)
         tokens = self.tokenizer(
             text,
             add_special_tokens=False,
@@ -116,10 +117,17 @@ class WhisperDataset(Dataset):
             "attention_mask": attention_mask,
         }
 
-    def _convert_accent_to_token_id(self, accent_idx: int) -> int:
-        return self.tokenizer.convert_tokens_to_ids(
-            ACCENTS[WESTBROOK_DATASET_ACCENT_MAP[accent_idx]]
-        )
+    def get_prefix_tokens(self, item: dict[str, Any]) -> list[int]:
+        prefix_tokens = []
+        if self.multilingual_model:
+            prefix_tokens.extend([self.en_lang_token_id, self.transcribe_token_id])
+        if isinstance(self.tokenizer, WhisperAccentTokenizer):
+            accent_token_id = self.tokenizer.convert_tokens_to_ids(
+                ACCENTS[item["accent"]]
+            )
+            prefix_tokens.append(accent_token_id)
+        prefix_tokens.append(self.no_timestamps_token_id)
+        return prefix_tokens
 
 
 @dataclass

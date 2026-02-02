@@ -11,7 +11,7 @@ from src.model.tokenization import ACCENTS
 @dataclass
 class ModelArguments:
     model_type: str = "whisper_accent"
-    model_name_or_path: str = "openai/whisper-tiny.en"
+    base_model_name_or_path: str = "openai/whisper-tiny.en"
     is_multilingual: bool = False
 
 
@@ -24,12 +24,18 @@ class DatasetArguments:
 
 @dataclass
 class WhisperAccentTrainingArguments(Seq2SeqTrainingArguments):
-    lambda_accent_loss: float = 1.0
-    lambda_diversity_loss: float = 1.0
+    lambda_accent_loss: float | None = None
+    lambda_diversity_loss: float | None = None
+    embedding_learning_rate: float = 1e-4
     report_to: None | str | list[str] = field(
         default=None,
         metadata={"help": "The list of integrations to report logs to.", "nargs": "+"},
     )
+
+    def __post_init__(self):
+        super().__post_init__()
+        self.include_for_metrics = ["inputs"]
+        self.batch_eval_metrics = True
 
 
 @dataclass
@@ -46,7 +52,9 @@ class LoraArguments:
 def processor_init(model_args: ModelArguments) -> WhisperAccentProcessor:
     # Load processor and add accent tokens to tokenizer
     # Note: BOS token updated from <|endoftext|> to <|startoftranscript|>
-    processor = WhisperAccentProcessor.from_pretrained(model_args.model_name_or_path)
+    processor = WhisperAccentProcessor.from_pretrained(
+        model_args.base_model_name_or_path
+    )
     processor.tokenizer.add_special_tokens(
         {
             "additional_special_tokens": list(ACCENTS.values()),
@@ -64,7 +72,7 @@ def model_init(
     # Load whisper weights into whisper_accent model
     # and resize token embeddings + update generation config
     model = WhisperAccentForConditionalGeneration.from_pretrained(
-        model_args.model_name_or_path
+        model_args.base_model_name_or_path
     )
     model.config.architectures = [model.__class__.__name__]
     model.resize_token_embeddings(len(processor.tokenizer))
@@ -110,5 +118,7 @@ def model_init(
             ensure_weight_tying=True,
         )
         model = get_peft_model(model, lora_config)
+    else:
+        raise NotImplementedError("Non-LoRA training is not implemented yet")
 
     return model
