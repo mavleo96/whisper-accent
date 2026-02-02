@@ -1,6 +1,5 @@
 import logging
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 import torch
@@ -23,22 +22,14 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 class WhisperDataset(Dataset):
-    def __init__(
-        self,
-        data_path: str,
-        split: str,
-        processor: WhisperProcessor,
-        multilingual_model: bool = False,
-        shuffle: bool = False,
-        num_proc: int = 16,
-    ):
+    def __init__(self, data_path, split, processor, multilingual_model=False, num_proc=16):
         super().__init__()
 
         self.tokenizer = processor.tokenizer
         self.feature_extractor = processor.feature_extractor
         self.multilingual_model = multilingual_model
 
-        # Load data
+        # Load and preprocess data
         self.raw_dataset = load_dataset(data_path, split=split, num_proc=num_proc)
         self.raw_dataset = self.raw_dataset.cast_column("audio", Audio(sampling_rate=SAMPLING_RATE))
         self.raw_dataset = self.raw_dataset.cast_column("accent", Value("string"))
@@ -54,6 +45,8 @@ class WhisperDataset(Dataset):
                 return False
 
         self.raw_dataset = self.raw_dataset.filter(is_valid_audio, num_proc=num_proc)
+        if split == "validation":
+            self.raw_dataset = self.raw_dataset.select(range(100))
 
         # Token ids
         self.decoder_start_token_id = self.tokenizer.convert_tokens_to_ids("<|startoftranscript|>")
@@ -62,15 +55,12 @@ class WhisperDataset(Dataset):
         self.eos_token_id = self.tokenizer.eos_token_id
         self.en_lang_token_id = self.tokenizer.convert_tokens_to_ids("<|en|>")
 
-        if shuffle:
-            self.raw_dataset.shuffle()
-
         logger.info(f"Loaded {len(self.raw_dataset)} examples for Whisper fine-tuning")
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.raw_dataset)
 
-    def __getitem__(self, i: int) -> dict[str, torch.Tensor]:
+    def __getitem__(self, i):
         item = self.raw_dataset[i]
 
         # Extract audio and text
@@ -109,7 +99,7 @@ class WhisperDataset(Dataset):
             "attention_mask": attention_mask,
         }
 
-    def get_prefix_tokens(self, item: dict[str, Any]) -> list[int]:
+    def get_prefix_tokens(self, item):
         prefix_tokens = []
         if self.multilingual_model:
             prefix_tokens.extend([self.en_lang_token_id, self.transcribe_token_id])
@@ -156,3 +146,6 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         #     batch["attention_mask"] = batch["attention_mask"][:, 1:]
 
         return batch
+
+
+__all__ = ["WhisperDataset", "DataCollatorSpeechSeq2SeqWithPadding"]

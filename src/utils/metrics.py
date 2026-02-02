@@ -1,3 +1,5 @@
+import torch
+import torch.nn.functional as F
 from torchmetrics.functional.text import word_error_rate
 
 
@@ -26,4 +28,20 @@ def compute_wer(preds, targets, accents=None):
     return overall_wer, wer_per_accent
 
 
-__all__ = ["compute_wer"]
+def repulsive_loss(x, temperature=0.1):
+    assert x.ndim == 2, "Input must be a 2D tensor"
+    b, d = x.shape
+
+    # Normalize and compute cosine similarity
+    x = F.normalize(x, dim=1)
+    sim = x @ x.T
+
+    # Mask self-similarity
+    mask = torch.eye(b, device=x.device).bool()
+    sim = sim.masked_fill(mask, torch.finfo(x.dtype).min)
+
+    # LogSumExp over scaled similarities, normalized by sqrt(d)
+    return torch.logsumexp(sim / temperature, dim=1).mean() / d**0.5
+
+
+__all__ = ["compute_wer", "repulsive_loss"]

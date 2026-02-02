@@ -22,9 +22,9 @@
   - subclass Seq2SeqTrainer and override compute loss method (to log each loss separately)
   - [DONE] override create optimizer and scheduler method (to use separate learning rates for embedding and linear layers)
   - [DONE] embedding weight decay should be set to 0
-  - override compute metrics method (to compute wer & accent accuracy)
+  - [DONE] override compute metrics method (to compute wer & accent accuracy)
   - callback to compute final wer overall and per accent
-  - need to do retrieve_init_tokens for accent accuracy since generate prediction does not return init_tokens
+  - [DONE] need to do retrieve_init_tokens for accent accuracy since generate prediction does not return init_tokens
   - train logging; losses: loss, transcription, accent, embedding_diversity
   - eval logging; losses: loss, transcription, accent, / metrics: wer, accent accuracy
   - merge and unload model after training as final model
@@ -36,6 +36,7 @@
   - tiny is too small; we need to use atleast medium or largev3
   - might need to pretrain to learn english accent embeddings (actually american/canadian)
   - [DONE] optimizer: separate learning rates; embedding learning rate needs to start high and decay fast
+  - lower case is correct preprocessing; accent token position also sensible;
 - Model:
   - max_length: 448 vs 255
   - [DONE] proj_out: ideal to exclude from LoRA training; proj_out is tied to decoder.embed_tokens; resize token embeddings weight tying is not working

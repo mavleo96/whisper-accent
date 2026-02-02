@@ -49,7 +49,7 @@ class LoraArguments:
     task_type: str = "SEQ_2_SEQ_LM"
 
 
-def processor_init(model_args: ModelArguments) -> WhisperAccentProcessor:
+def processor_init(model_args):
     # Load processor and add accent tokens to tokenizer
     # Note: BOS token updated from <|endoftext|> to <|startoftranscript|>
     processor = WhisperAccentProcessor.from_pretrained(model_args.base_model_name_or_path)
@@ -62,11 +62,7 @@ def processor_init(model_args: ModelArguments) -> WhisperAccentProcessor:
     return processor
 
 
-def model_init(
-    model_args: ModelArguments,
-    lora_args: LoraArguments,
-    processor: WhisperAccentProcessor,
-) -> WhisperAccentForConditionalGeneration:
+def model_init(model_args, lora_args, processor):
     # Load whisper weights into whisper_accent model
     # and resize token embeddings + update generation config
     model = WhisperAccentForConditionalGeneration.from_pretrained(
@@ -106,7 +102,7 @@ def model_init(
                 target_modules.append(name)
 
         # Trainable token indices for new accent tokens
-        accent_token_indices = list(model.generation_config.accent_to_id.values())
+        accent_token_indices = sorted(list(model.generation_config.accent_to_id.values()))
 
         lora_config = LoraConfig(
             r=lora_args.lora_r,

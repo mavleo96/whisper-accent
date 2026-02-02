@@ -32,12 +32,18 @@ class WhisperAccentTokenizer(WhisperTokenizer):
         self.accent = kwargs.pop("accent", None)
         super().__init__(*args, **kwargs)
 
-    def set_prefix_tokens(self, language=None, task=None, accent=None, predict_timestamps=None):
+    def set_prefix_tokens(
+        self,
+        language: str | None = None,
+        task: str | None = None,
+        accent: str | None = None,
+        predict_timestamps: bool | None = None,
+    ):
         self.accent = accent if accent is not None else self.accent
         super().set_prefix_tokens(language, task, predict_timestamps)
 
     @property
-    def prefix_tokens(self):
+    def prefix_tokens(self) -> list[int]:
         bos_sequence = super().prefix_tokens
         # if accent is not set, return original prefix tokens
         if self.accent is None:

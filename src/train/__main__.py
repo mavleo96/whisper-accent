@@ -75,18 +75,16 @@ def main():
     collator = DataCollatorSpeechSeq2SeqWithPadding(processor)
     train_dataset = WhisperDataset(
         dataset_args.train_data_path,
+        "train",
         processor,
         multilingual_model=model_args.is_multilingual,
-        split="train",
-        shuffle=True,
         num_proc=dataset_args.num_proc,
     )
     eval_dataset = WhisperDataset(
         dataset_args.eval_data_path,
+        "validation",
         processor,
         multilingual_model=model_args.is_multilingual,
-        split="validation",
-        shuffle=False,
         num_proc=dataset_args.num_proc,
     )
 
@@ -99,10 +97,10 @@ def main():
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         processing_class=processor,
+        compute_metrics="all" if model_args.model_type == "whisper_accent" else "wer",
     )
 
-    # trainer.train()
-    print(trainer.model)
+    trainer.train()
 
 
 if __name__ == "__main__":

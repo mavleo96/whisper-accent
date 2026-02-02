@@ -70,20 +70,15 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
 
     def _retrieve_init_tokens(
         self,
-        input_features,
-        batch_size,
-        generation_config,
-        config,
-        num_segment_frames,
-        kwargs,
-    ):
+        input_features: torch.FloatTensor,
+        batch_size: int | torch.Tensor,
+        generation_config: GenerationConfig,
+        config: WhisperAccentConfig,
+        num_segment_frames: int,
+        kwargs: dict,
+    ) -> torch.LongTensor:
         init_tokens = super()._retrieve_init_tokens(
-            input_features,
-            batch_size,
-            generation_config,
-            config,
-            num_segment_frames,
-            kwargs,
+            input_features, batch_size, generation_config, config, num_segment_frames, kwargs
         )
 
         # Check if init tokens have no_timestamps_token_id

@@ -29,7 +29,7 @@ python -m src.train \
     --tf32 False \
     --bf16 True \
     --fp16 False \
-    --lambda_accent_loss 0.1 \
+    --lambda_accent_loss 0.01 \
     --lambda_diversity_loss 0.01 \
     --optim adamw_torch \
     --learning_rate 1e-5 \
@@ -48,7 +48,9 @@ python -m src.train \
     --task_type "SEQ_2_SEQ_LM" \
     --eval_strategy steps \
     --eval_steps 100 \
+    --eval_on_start True \
     --predict_with_generate True \
+    --logging_first_step True \
     --logging_steps 10 \
     --run_name $RUN_NAME \
     --report_to tensorboard wandb \
