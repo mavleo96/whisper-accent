@@ -20,6 +20,8 @@
   - [DONE] Push to hub; strategy all checkpoints; hf argument parser
 - Trainer:
   - subclass Seq2SeqTrainer and override compute loss method (to log each loss separately)
+  - [DONE] override create optimizer and scheduler method (to use separate learning rates for embedding and linear layers)
+  - [DONE] embedding weight decay should be set to 0
   - override compute metrics method (to compute wer & accent accuracy)
   - callback to compute final wer overall and per accent
   - need to do retrieve_init_tokens for accent accuracy since generate prediction does not return init_tokens
@@ -33,11 +35,28 @@
   - [DONE] Steps 10K; prev runs were 2K steps
   - tiny is too small; we need to use atleast medium or largev3
   - might need to pretrain to learn english accent embeddings (actually american/canadian)
-  - optimizer: separate learning rates; embedding learning rate needs to start high and decay fast
+  - [DONE] optimizer: separate learning rates; embedding learning rate needs to start high and decay fast
 - Model:
   - max_length: 448 vs 255
-  - proj_out: ideal to exclude from LoRA training; proj_out is tied to decoder.embed_tokens; resize token embeddings weight tying is not working
+  - [DONE] proj_out: ideal to exclude from LoRA training; proj_out is tied to decoder.embed_tokens; resize token embeddings weight tying is not working
 
+
+RUNS TO DO:
+- Evaluation: Westbrook dataset
+  - tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large, large-v2, large-v3
+  - accent-medium, accent-medium.en, accent-large-v3
+- Test Runs:
+  - tiny.en 2000 vs accent-tiny.en 2000
+  - tiny.en 10000
+- Training: Westbrook dataset
+  - accent-medium
+  - accent-medium.en
+  - accent-large-v3
+- Ablations (one size medium or large-v3):
+  - full
+  - no accent loss
+  - no diversity loss
+  - baseline
 
 
 # ADDITIONAL NOTES
