@@ -135,12 +135,8 @@ def save_results(
 def main():
     parser = argparse.ArgumentParser(description="Evaluate Whisper on ASR task")
     parser.add_argument("--model_name", type=str, default="openai/whisper-tiny.en")
-    parser.add_argument(
-        "--dataset_name", type=str, default="westbrook/English_Accent_DataSet"
-    )
-    parser.add_argument(
-        "--split", type=str, default="test", choices=["test", "validation"]
-    )
+    parser.add_argument("--dataset_name", type=str, default="westbrook/English_Accent_DataSet")
+    parser.add_argument("--split", type=str, default="test", choices=["test", "validation"])
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--device", type=str, default=None)
     parser.add_argument("--dtype", type=str, default="bfloat16")

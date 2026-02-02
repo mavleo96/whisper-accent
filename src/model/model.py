@@ -40,13 +40,10 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
         num_segment_frames: int = 3000,
     ) -> torch.LongTensor:
         if input_features is None and encoder_outputs is None:
-            raise ValueError(
-                "You have to specify either `input_features` or `encoder_outputs`"
-            )
+            raise ValueError("You have to specify either `input_features` or `encoder_outputs`")
         elif input_features is not None and encoder_outputs is not None:
             raise ValueError(
-                "Make sure to specify only one of `input_features` or `encoder_outputs`"
-                " - not both!"
+                "Make sure to specify only one of `input_features` or `encoder_outputs` - not both!"
             )
         elif input_features is not None:
             inputs = {"input_features": input_features[:, :, :num_segment_frames]}
@@ -56,9 +53,8 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
         generation_config = generation_config or self.generation_config
 
         with torch.no_grad():
-            logits = self(
-                **inputs, decoder_input_ids=decoder_input_ids, use_cache=False
-            ).logits[:, -1]
+            logits = self(**inputs, decoder_input_ids=decoder_input_ids, use_cache=False)
+            logits = logits.logits[:, -1]
 
         # Mask out non-accent tokens
         non_accent_mask = torch.ones_like(logits[0], dtype=torch.bool)
@@ -99,13 +95,13 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
         # Consistency check: return_timestamps flag vs. no_timestamps_token_id presence
         if not self.generation_config.return_timestamps and not has_no_timestamps_token:
             raise ValueError(
-                "Generation config return_timestamps is set to False, but the init"
-                " tokens do not end with no_timestamps_token_id."
+                "Generation config return_timestamps is set to False, but the init tokens do not"
+                " end with no_timestamps_token_id."
             )
         if self.generation_config.return_timestamps and has_no_timestamps_token:
             raise ValueError(
-                "Generation config return_timestamps is set to True, but the init"
-                " tokens end with no_timestamps_token_id."
+                "Generation config return_timestamps is set to True, but the init tokens end with"
+                " no_timestamps_token_id."
             )
 
         # If has no_timestamps_token_id, use init_tokens without last token
@@ -123,8 +119,8 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
             num_segment_frames=num_segment_frames,
         )
 
-        # Insert accent ids before no_timestamps_token_id; if return_timestamps is set
-        # to True, insert at last index
+        # Insert accent ids before no_timestamps_token_id; if return_timestamps is set to True,
+        # insert at last index
         if has_no_timestamps_token:
             init_tokens = torch.cat(
                 [init_tokens[:, :-1], accent_ids.unsqueeze(1), init_tokens[:, -1:]],

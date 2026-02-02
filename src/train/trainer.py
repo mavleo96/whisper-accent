@@ -22,9 +22,7 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         callbacks: list[TrainerCallback] | None = None,
     ):
         assert args.batch_eval_metrics, "Batch eval metrics must be enabled"
-        assert "inputs" in args.include_for_metrics, (
-            "Inputs must be included for metrics"
-        )
+        assert "inputs" in args.include_for_metrics, "Inputs must be included for metrics"
         super().__init__(
             model=model,
             args=args,
@@ -64,17 +62,13 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
                 "weight_decay": self.args.weight_decay,
             },
         ]
-        optimizer_cls, optimizer_kwargs = self.get_optimizer_cls_and_kwargs(
-            self.args, model
-        )
+        optimizer_cls, optimizer_kwargs = self.get_optimizer_cls_and_kwargs(self.args, model)
         self.optimizer = optimizer_cls(optimizer_grouped_parameters, **optimizer_kwargs)
         return self.optimizer
 
     @staticmethod
     def get_optimizer_cls_and_kwargs(args, model):
-        optimizer_cls, optimizer_kwargs = Seq2SeqTrainer.get_optimizer_cls_and_kwargs(
-            args, model
-        )
+        optimizer_cls, optimizer_kwargs = Seq2SeqTrainer.get_optimizer_cls_and_kwargs(args, model)
         optimizer_kwargs.pop("lr")
         return optimizer_cls, optimizer_kwargs
 

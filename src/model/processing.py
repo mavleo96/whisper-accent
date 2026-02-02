@@ -11,9 +11,7 @@ class WhisperAccentProcessor(WhisperProcessor):
     def _load_tokenizer_from_pretrained(
         cls, sub_processor_type, pretrained_model_name_or_path, subfolder="", **kwargs
     ):
-        return WhisperAccentTokenizer.from_pretrained(
-            pretrained_model_name_or_path, **kwargs
-        )
+        return WhisperAccentTokenizer.from_pretrained(pretrained_model_name_or_path, **kwargs)
 
     def save_pretrained(self, save_directory, push_to_hub: bool = False, **kwargs):
         super().save_pretrained(save_directory, push_to_hub, **kwargs)

@@ -33,21 +33,14 @@ def main():
             LoraArguments,
         ]
     )
-    model_args, dataset_args, training_args, lora_args = (
-        parser.parse_args_into_dataclasses()
-    )
+    model_args, dataset_args, training_args, lora_args = parser.parse_args_into_dataclasses()
 
     # Load model and processor; whisper / whisper_accent models are supported
     # Note: Non-LoRA training is not implemented yet
-    logger.info(
-        f"Loading {model_args.model_type} model from"
-        f" {model_args.base_model_name_or_path}"
-    )
+    logger.info(f"Loading {model_args.model_type} model from {model_args.base_model_name_or_path}")
     if model_args.model_type == "whisper":
         processor = WhisperProcessor.from_pretrained(model_args.base_model_name_or_path)
-        model = WhisperForConditionalGeneration.from_pretrained(
-            model_args.base_model_name_or_path
-        )
+        model = WhisperForConditionalGeneration.from_pretrained(model_args.base_model_name_or_path)
         if lora_args.lora_enable:
             target_modules = []
             for name, _ in model.named_modules():

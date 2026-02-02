@@ -52,9 +52,7 @@ class LoraArguments:
 def processor_init(model_args: ModelArguments) -> WhisperAccentProcessor:
     # Load processor and add accent tokens to tokenizer
     # Note: BOS token updated from <|endoftext|> to <|startoftranscript|>
-    processor = WhisperAccentProcessor.from_pretrained(
-        model_args.base_model_name_or_path
-    )
+    processor = WhisperAccentProcessor.from_pretrained(model_args.base_model_name_or_path)
     processor.tokenizer.add_special_tokens(
         {
             "additional_special_tokens": list(ACCENTS.values()),
@@ -79,8 +77,8 @@ def model_init(
     model.generation_config.accent_to_id = {
         k: v for k, v in processor.tokenizer.vocab.items() if k in ACCENTS.values()
     }
-    # Note: proj_out is tied to decoder.embed_tokens; resize token embeddings weight
-    # tying is not working
+    # Note: proj_out is tied to decoder.embed_tokens; resize token embeddings weight tying is
+    # not working
     model.proj_out = nn.Linear(
         model.proj_out.in_features,
         len(processor.tokenizer),

@@ -40,9 +40,7 @@ class WhisperDataset(Dataset):
 
         # Load data
         self.raw_dataset = load_dataset(data_path, split=split, num_proc=num_proc)
-        self.raw_dataset = self.raw_dataset.cast_column(
-            "audio", Audio(sampling_rate=SAMPLING_RATE)
-        )
+        self.raw_dataset = self.raw_dataset.cast_column("audio", Audio(sampling_rate=SAMPLING_RATE))
         self.raw_dataset = self.raw_dataset.cast_column("accent", Value("string"))
         self.raw_dataset = self.raw_dataset.map(
             lambda x: {"accent": WESTBROOK_DATASET_ACCENT_MAP[int(x["accent"])]}
@@ -58,15 +56,9 @@ class WhisperDataset(Dataset):
         self.raw_dataset = self.raw_dataset.filter(is_valid_audio, num_proc=num_proc)
 
         # Token ids
-        self.decoder_start_token_id = self.tokenizer.convert_tokens_to_ids(
-            "<|startoftranscript|>"
-        )
-        self.transcribe_token_id = self.tokenizer.convert_tokens_to_ids(
-            "<|transcribe|>"
-        )
-        self.no_timestamps_token_id = self.tokenizer.convert_tokens_to_ids(
-            "<|notimestamps|>"
-        )
+        self.decoder_start_token_id = self.tokenizer.convert_tokens_to_ids("<|startoftranscript|>")
+        self.transcribe_token_id = self.tokenizer.convert_tokens_to_ids("<|transcribe|>")
+        self.no_timestamps_token_id = self.tokenizer.convert_tokens_to_ids("<|notimestamps|>")
         self.eos_token_id = self.tokenizer.eos_token_id
         self.en_lang_token_id = self.tokenizer.convert_tokens_to_ids("<|en|>")
 
@@ -122,9 +114,7 @@ class WhisperDataset(Dataset):
         if self.multilingual_model:
             prefix_tokens.extend([self.en_lang_token_id, self.transcribe_token_id])
         if isinstance(self.tokenizer, WhisperAccentTokenizer):
-            accent_token_id = self.tokenizer.convert_tokens_to_ids(
-                ACCENTS[item["accent"]]
-            )
+            accent_token_id = self.tokenizer.convert_tokens_to_ids(ACCENTS[item["accent"]])
             prefix_tokens.append(accent_token_id)
         prefix_tokens.append(self.no_timestamps_token_id)
         return prefix_tokens
@@ -145,9 +135,7 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         )["input_features"]
 
         # Merge attention masks
-        batch["attention_mask"] = torch.tensor(
-            np.array([i["attention_mask"] for i in features])
-        )
+        batch["attention_mask"] = torch.tensor(np.array([i["attention_mask"] for i in features]))
 
         # Pad labels
         labels_list = [{"input_ids": feature["labels"]} for feature in features]

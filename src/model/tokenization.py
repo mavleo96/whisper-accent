@@ -32,9 +32,7 @@ class WhisperAccentTokenizer(WhisperTokenizer):
         self.accent = kwargs.pop("accent", None)
         super().__init__(*args, **kwargs)
 
-    def set_prefix_tokens(
-        self, language=None, task=None, accent=None, predict_timestamps=None
-    ):
+    def set_prefix_tokens(self, language=None, task=None, accent=None, predict_timestamps=None):
         self.accent = accent if accent is not None else self.accent
         super().set_prefix_tokens(language, task, predict_timestamps)
 
@@ -49,14 +47,12 @@ class WhisperAccentTokenizer(WhisperTokenizer):
         self.accent = self.accent.lower()
         if self.accent not in ACCENTS:
             raise ValueError(
-                f"Unsupported accent: {self.accent}. Accent should be"
-                f" one of: {list(ACCENTS.keys())}."
+                f"Unsupported accent: {self.accent}. Accent should be one of:"
+                f" {list(ACCENTS.keys())}."
             )
         accent_token_id = self.convert_tokens_to_ids(ACCENTS[self.accent])
         if accent_token_id == self.eos_token_id:
-            raise ValueError(
-                f"Accent token {ACCENTS[self.accent]} was not found in the tokenizer."
-            )
+            raise ValueError(f"Accent token {ACCENTS[self.accent]} was not found in the tokenizer.")
 
         # if predict_timestamps is not set, insert accent token before timestamps token
         if not self.predict_timestamps:
