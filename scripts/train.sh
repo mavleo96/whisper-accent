@@ -29,7 +29,7 @@ torchrun --nproc_per_node=$NPROC_PER_NODE -m src.train \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 4 \
-    --gradient_checkpointing False \
+    --gradient_checkpointing True \
     --tf32 False \
     --bf16 True \
     --fp16 False \
@@ -64,4 +64,5 @@ torchrun --nproc_per_node=$NPROC_PER_NODE -m src.train \
     --push_to_hub True \
     --hub_model_id $HUB_MODEL_ID \
     --hub_strategy "all_checkpoints" \
-    --remove_unused_columns False
+    --remove_unused_columns False \
+    --ddp_find_unused_parameters False

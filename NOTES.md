@@ -60,3 +60,12 @@ RUNS TO DO:
 - Evaluation: Westbrook dataset
   - tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large, large-v2, large-v3
   - accent-medium, accent-medium.en, accent-large-v3
+
+
+Overfitting:
+- https://huggingface.co/spaces/openai/whisper/discussions/100
+- https://github.com/huggingface/community-events/issues/197
+- Increase dropout and reduce learning rate & lora rank
+- Training Phase:
+  - 1000 steps learning the accent embedding 1e-4
+  - 2000 steps learning the model 1e-5

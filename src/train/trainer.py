@@ -1,3 +1,4 @@
+import torch
 import torch.nn.functional as F
 from torchmetrics.classification import Accuracy
 from torchmetrics.text import WordErrorRate
@@ -85,6 +86,17 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         optimizer_cls, optimizer_kwargs = Seq2SeqTrainer.get_optimizer_cls_and_kwargs(args, model)
         optimizer_kwargs.pop("lr")
         return optimizer_cls, optimizer_kwargs
+
+    def log(self, logs, start_time=None):
+        # Log both learning_rate (main) and embedding_learning_rate when using two param groups
+        if self.optimizer is not None and len(self.optimizer.param_groups) >= 2:
+            lr_main = self.optimizer.param_groups[1]["lr"]
+            lr_embed = self.optimizer.param_groups[0]["lr"]
+            logs["learning_rate"] = lr_main.item() if torch.is_tensor(lr_main) else lr_main
+            logs["embedding_learning_rate"] = (
+                lr_embed.item() if torch.is_tensor(lr_embed) else lr_embed
+            )
+        super().log(logs, start_time)
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         outputs = model(**inputs)
