@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Multi-device CUDA training (GPUs 0 and 1)
+export CUDA_VISIBLE_DEVICES=0,1
+NPROC_PER_NODE=2
+
 # Model and Dataset Arguments
 export MODEL_TYPE="whisper_accent"
 export BASE_MODEL_NAME="openai/whisper-tiny.en"
@@ -15,15 +19,15 @@ export HUB_MODEL_ID="mavleo96/whisper-accent-tiny.en"
 export WANDB_PROJECT="whisper-accent"
 export WANDB_ENTITY="mavleo96-team"
 
-python -m src.train \
+torchrun --nproc_per_node=$NPROC_PER_NODE -m src.train \
     --model_type $MODEL_TYPE \
     --base_model_name_or_path $BASE_MODEL_NAME \
     --is_multilingual $IS_MULTILINGUAL \
     --train_data_path $DATASET_NAME \
     --eval_data_path $DATASET_NAME \
     --output_dir $OUTPUT_DIR \
-    --per_device_train_batch_size 8 \
-    --per_device_eval_batch_size 8 \
+    --per_device_train_batch_size 4 \
+    --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 4 \
     --gradient_checkpointing False \
     --tf32 False \
@@ -47,7 +51,7 @@ python -m src.train \
     --use_rslora True \
     --task_type "SEQ_2_SEQ_LM" \
     --eval_strategy steps \
-    --eval_steps 100 \
+    --eval_steps 200 \
     --eval_on_start True \
     --predict_with_generate True \
     --logging_first_step True \
@@ -55,7 +59,7 @@ python -m src.train \
     --run_name $RUN_NAME \
     --report_to tensorboard wandb \
     --save_strategy steps \
-    --save_steps 500 \
+    --save_steps 200 \
     --save_total_limit 100 \
     --push_to_hub True \
     --hub_model_id $HUB_MODEL_ID \

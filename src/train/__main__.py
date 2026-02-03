@@ -1,5 +1,7 @@
 import logging
+import os
 
+import torch
 from peft import LoraConfig, get_peft_model
 from transformers import (
     HfArgumentParser,
@@ -24,6 +26,14 @@ def main():
     logger = logging.getLogger(__name__)
     # Suppress HTTP request logging from httpx
     logging.getLogger("httpx").setLevel(logging.WARNING)
+
+    # Multi-device: use CUDA_VISIBLE_DEVICES (e.g. 0,1) and launch with torchrun --nproc_per_node=N
+    local_rank = int(os.environ.get("LOCAL_RANK", -1))
+    world_size = int(os.environ.get("WORLD_SIZE", 1))
+    if world_size > 1:
+        logger.info(f"Distributed training: local_rank={local_rank}, world_size={world_size}")
+    else:
+        logger.info(f"Training on {torch.cuda.device_count()} GPU(s)")
 
     parser = HfArgumentParser(
         [

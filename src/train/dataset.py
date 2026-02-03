@@ -45,8 +45,6 @@ class WhisperDataset(Dataset):
                 return False
 
         self.raw_dataset = self.raw_dataset.filter(is_valid_audio, num_proc=num_proc)
-        if split == "validation":
-            self.raw_dataset = self.raw_dataset.select(range(100))
 
         # Token ids
         self.decoder_start_token_id = self.tokenizer.convert_tokens_to_ids("<|startoftranscript|>")
