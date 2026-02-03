@@ -2,6 +2,7 @@ import logging
 import os
 
 import torch
+import torch.distributed as dist
 from peft import LoraConfig, get_peft_model
 from transformers import (
     HfArgumentParser,
@@ -111,6 +112,10 @@ def main():
     )
 
     trainer.train()
+
+    # Ensure distributed process group is properly destroyed to avoid NCCL warnings on exit
+    if dist.is_available() and dist.is_initialized():
+        dist.destroy_process_group()
 
 
 if __name__ == "__main__":
