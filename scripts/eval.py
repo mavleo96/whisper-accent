@@ -157,7 +157,6 @@ def main():
     dataset = dataset.cast_column("accent", Value("string"))
     dataset = dataset.map(lambda x: {"accent": WESTBROOK_DATASET_ACCENT_MAP[int(x["accent"])]})
     dataset = dataset.map(partial(preprocess, processor=processor), desc="Preprocessing")
-    dataset = dataset.select(range(100))
 
     dataloader = DataLoader(
         dataset,
