@@ -5,15 +5,15 @@ export CUDA_VISIBLE_DEVICES=0,1
 NPROC_PER_NODE=2
 
 # Model and Dataset Arguments
-export MODEL_TYPE="whisper_accent"
-export BASE_MODEL_NAME="openai/whisper-tiny.en"
+export MODEL_TYPE="whisper"
+export BASE_MODEL_NAME="openai/whisper-medium.en"
 export IS_MULTILINGUAL="False"
 export DATASET_NAME="westbrook/English_Accent_DataSet"
 
 # Checkpoint Arguments
-export OUTPUT_DIR="checkpoints/whisper-accent-tiny.en"
-export RUN_NAME="whisper-accent-tiny.en-$(date +%Y%m%d-%H%M%S)"
-export HUB_MODEL_ID="mavleo96/whisper-accent-tiny.en"
+export OUTPUT_DIR="/workspace/checkpoints/whisper-medium.en"
+export RUN_NAME="whisper-medium.en-test-run-$(date +%Y%m%d-%H%M%S)"
+export HUB_MODEL_ID="mavleo96/whisper-medium.en"
 
 # Wandb Arguments
 export WANDB_PROJECT="whisper-accent"
@@ -28,25 +28,25 @@ torchrun --nproc_per_node=$NPROC_PER_NODE -m src.train \
     --output_dir $OUTPUT_DIR \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 4 \
-    --gradient_accumulation_steps 4 \
+    --gradient_accumulation_steps 8 \
     --gradient_checkpointing True \
     --tf32 False \
     --bf16 True \
     --fp16 False \
-    --lambda_accent_loss 0.01 \
-    --lambda_diversity_loss 0.01 \
+    --lambda_accent_loss 0.0 \
+    --lambda_diversity_loss 0.0 \
     --optim adamw_torch \
-    --learning_rate 1e-5 \
-    --embedding_learning_rate 1e-4 \
-    --weight_decay 0.01 \
+    --learning_rate 3e-6 \
+    --embedding_learning_rate 0.0 \
+    --weight_decay 0.1 \
     --lr_scheduler_type cosine \
     --warmup_steps 0.05 \
-    --max_steps 10000 \
+    --max_steps 1000 \
     --max_grad_norm 1.0 \
     --lora_enable True \
-    --lora_r 32 \
-    --lora_alpha 64 \
-    --lora_dropout 0.05 \
+    --lora_r 16 \
+    --lora_alpha 32 \
+    --lora_dropout 0.2 \
     --lora_bias "none" \
     --use_rslora True \
     --task_type "SEQ_2_SEQ_LM" \
