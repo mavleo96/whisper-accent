@@ -58,9 +58,22 @@ RUNS TO DO:
   - accent-medium.en
   - accent-large-v3
 - Evaluation: Westbrook dataset
-  - tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large, large-v2, large-v3
-  - accent-medium, accent-medium.en, accent-large-v3
+  - [DONE] tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large-v3, large-v3-turbo
+  - accent-small, accent-small.en, accent-medium, accent-medium.en, accent-large-v3
 
+
+Goals:
+- Figure out baseline finetuning scripts
+- Accent model performance
+- Ablations
+
+Experiments: openai/whisper-small models
+- Sanchit's Code:
+  - Run as is on hindi dataset
+  - Run code with westbrook dataset
+- My Code:
+  - Use cache vs no cache for 2000 steps
+  - Preprocessing vs no preprocessing for 5000 steps
 
 Overfitting:
 - https://huggingface.co/spaces/openai/whisper/discussions/100
@@ -68,6 +81,7 @@ Overfitting:
 - Increase dropout and reduce learning rate & lora rank
 - Performance peaks at around 600 steps for lr 5e-6 to 1e-5
 - Lora rank > 32 overfits immediately; 8 / 16 / 32 are good; 32 improves later (64 performance beyond 100 steps not tested yet)
+- Learning rate recommendation: pre-train_lr / 40; small: 1e-5; medium; 5e-6; with linear decay
 - Training Phase:
   - 1000 steps learning the accent embedding 1e-4
   - 2000 steps learning the model 1e-5

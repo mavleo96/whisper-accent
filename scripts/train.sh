@@ -6,14 +6,14 @@ NPROC_PER_NODE=2
 
 # Model and Dataset Arguments
 export MODEL_TYPE="whisper"
-export BASE_MODEL_NAME="openai/whisper-medium.en"
+export BASE_MODEL_NAME="openai/whisper-small.en"
 export IS_MULTILINGUAL="False"
 export DATASET_NAME="westbrook/English_Accent_DataSet"
 
 # Checkpoint Arguments
-export OUTPUT_DIR="/workspace/checkpoints/whisper-medium.en"
-export RUN_NAME="whisper-medium.en-test-run-$(date +%Y%m%d-%H%M%S)"
-export HUB_MODEL_ID="mavleo96/whisper-medium.en"
+export OUTPUT_DIR="/workspace/checkpoints/whisper-small.en"
+export RUN_NAME="whisper-small.en-test-run-$(date +%Y%m%d-%H%M%S)"
+export HUB_MODEL_ID="mavleo96/whisper-small.en"
 
 # Wandb Arguments
 export WANDB_PROJECT="whisper-accent"
@@ -36,10 +36,10 @@ torchrun --nproc_per_node=$NPROC_PER_NODE -m src.train \
     --lambda_accent_loss 0.0 \
     --lambda_diversity_loss 0.0 \
     --optim adamw_torch \
-    --learning_rate 3e-6 \
+    --learning_rate 5e-6 \
     --embedding_learning_rate 0.0 \
     --weight_decay 0.1 \
-    --lr_scheduler_type cosine \
+    --lr_scheduler_type linear \
     --warmup_steps 0.05 \
     --max_steps 1000 \
     --max_grad_norm 1.0 \

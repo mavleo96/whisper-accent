@@ -10,22 +10,22 @@ from src.model.tokenization import ACCENTS
 
 @dataclass
 class ModelArguments:
-    model_type: str = "whisper_accent"
-    base_model_name_or_path: str = "openai/whisper-tiny.en"
-    is_multilingual: bool = False
+    model_type: str = field(choices=["whisper_accent", "whisper"])
+    base_model_name_or_path: str
+    is_multilingual: bool
 
 
 @dataclass
 class DatasetArguments:
-    train_data_path: str = "westbrook/English_Accent_DataSet"
-    eval_data_path: str = "westbrook/English_Accent_DataSet"
+    train_data_path: str
+    eval_data_path: str
     num_proc: int = 16
 
 
 @dataclass
 class WhisperAccentTrainingArguments(Seq2SeqTrainingArguments):
-    lambda_accent_loss: float | None = None
-    lambda_diversity_loss: float | None = None
+    lambda_accent_loss: float = 0.0
+    lambda_diversity_loss: float = 0.0
     embedding_learning_rate: float = 1e-4
     report_to: None | str | list[str] = field(
         default=None,
