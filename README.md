@@ -21,3 +21,20 @@ python scripts/eval.py \
     --device cuda \
     --output results/whisper-tiny.en.json
 ```
+
+
+```bash
+python scripts/whisper_finetune.py \
+    --dataset_name common_voice \
+    --model_name openai/whisper-small \
+    --output_dir /workspace/checkpoints/whisper-small-hi \
+    --language hi
+```
+
+```bash
+python scripts/whisper_finetune.py \
+    --dataset_name westbrook \
+    --model_name openai/whisper-small \
+    --output_dir /workspace/checkpoints/whisper-small-accent \
+    --language en
+```
