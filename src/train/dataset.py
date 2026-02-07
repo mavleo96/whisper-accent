@@ -1,4 +1,5 @@
 import logging
+import re
 from dataclasses import dataclass
 
 import numpy as np
@@ -17,7 +18,6 @@ from src.model.tokenization import ACCENTS, WhisperAccentTokenizer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-# Suppress HTTP request logging from httpx
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
@@ -75,9 +75,16 @@ class WhisperDataset(Dataset):
         input_features = features["input_features"][0]
         attention_mask = features["attention_mask"][0]
 
-        # Process text with tokenizer
-        # Normalize text
-        text = self.tokenizer.normalize(text)
+        # Convert Edacc dataset from uppercase to sentence case
+        def sentence_case(text):
+            if not text:
+                return text
+            text = text.lower()
+            text = re.sub(r"(^\s*[a-z]|[.!?]\s*[a-z])", lambda m: m.group().upper(), text)
+            return text
+
+        if item["audio_id"].startswith("edacc_"):
+            text = sentence_case(text)
 
         # Tokenize text labels
         prefix_tokens = self.get_prefix_tokens(item)
