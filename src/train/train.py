@@ -10,7 +10,7 @@ from src.model.tokenization import ACCENTS
 
 @dataclass
 class ModelArguments:
-    model_type: str = field(choices=["whisper_accent", "whisper"])
+    model_type: str = field(metadata={"choices": ["whisper_accent", "whisper"]})
     base_model_name_or_path: str
     is_multilingual: bool
 

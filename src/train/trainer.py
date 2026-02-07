@@ -1,7 +1,6 @@
+import evaluate
 import torch
 import torch.nn.functional as F
-from torchmetrics.classification import Accuracy
-from torchmetrics.text import WordErrorRate
 from transformers import Seq2SeqTrainer
 
 from src.constants import IGNORE_INDEX
@@ -43,17 +42,12 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         else:
             compute_metrics = [compute_metrics]
 
-        # Metrics must be on the accelerator device so torchmetrics' distributed sync (all_gather)
-        # works with NCCL
-        device = self.accelerator.device
         self.metrics_accumulators = {}
         for metric in compute_metrics:
             if metric == "wer":
-                self.metrics_accumulators["wer"] = WordErrorRate().to(device)
+                self.metrics_accumulators["wer"] = evaluate.load("wer")
             if metric == "accent_accuracy":
-                self.metrics_accumulators["accent_accuracy"] = Accuracy(
-                    task="multiclass", num_classes=len(model.generation_config.accent_to_id)
-                ).to(device)
+                self.metrics_accumulators["accent_accuracy"] = evaluate.load("accuracy")
 
     def create_optimizer(self):
         model = self.model
@@ -156,34 +150,46 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         return repulsive_loss(accent_embeddings, temperature=0.1)
 
     def compute_metrics(self, eval_pred, compute_result=True):
-        tokenizer = self.processing_class.tokenizer
         predictions = eval_pred.predictions
         label_ids = eval_pred.label_ids
         inputs = eval_pred.inputs
 
-        # Update WER
+        # Update metric accumulators
         if "wer" in self.metrics_accumulators:
-            label_ids_np = label_ids.cpu().numpy().copy()
-            label_ids_np[label_ids_np == IGNORE_INDEX] = tokenizer.pad_token_id
-            label_str = tokenizer.batch_decode(label_ids_np, skip_special_tokens=True)
-            pred_ids = predictions.cpu().numpy()
-            raw_pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
-            pred_str = [tokenizer.normalize(s) for s in raw_pred_str]
-            self.metrics_accumulators["wer"].update(pred_str, label_str)
+            label_str, pred_str = self._get_normalized_labels_and_preds(label_ids, predictions)
+            self.metrics_accumulators["wer"].add_batch(predictions=pred_str, references=label_str)
 
-        # Update Accent Accuracy
         if "accent_accuracy" in self.metrics_accumulators:
             preds, labels = self._get_accent_labels_and_preds(inputs)
-            self.metrics_accumulators["accent_accuracy"].update(preds, labels)
+            self.metrics_accumulators["accent_accuracy"].add_batch(
+                predictions=preds, references=labels
+            )
 
-        # On final compute, return the result and reset the metric
-        if compute_result:
+        # On final compute, return the result
+        if compute_result and self.accelerator.is_main_process:
             results = {}
             for name, metric in self.metrics_accumulators.items():
-                results[name] = metric.compute().item()
-                metric.reset()
+                if name == "wer":
+                    results[name] = metric.compute()
+                if name == "accent_accuracy":
+                    results[name] = metric.compute()["accuracy"]
             return results
         return {}
+
+    def _get_normalized_labels_and_preds(self, label_ids, predictions):
+        tokenizer = self.processing_class.tokenizer
+
+        # Decode and normalize labels
+        label_ids_np = label_ids.cpu().numpy().copy()
+        label_ids_np[label_ids_np == IGNORE_INDEX] = tokenizer.pad_token_id
+        raw_label_str = tokenizer.batch_decode(label_ids_np, skip_special_tokens=True)
+        label_str = [tokenizer.normalize(s) for s in raw_label_str]
+
+        # Decode and normalize predictions
+        pred_ids = predictions.cpu().numpy()
+        raw_pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
+        pred_str = [tokenizer.normalize(s) for s in raw_pred_str]
+        return label_str, pred_str
 
     def _get_accent_labels_and_preds(self, inputs):
         model = self.accelerator.unwrap_model(self.model)

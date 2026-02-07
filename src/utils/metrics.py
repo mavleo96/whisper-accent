@@ -1,6 +1,6 @@
+import evaluate
 import torch
 import torch.nn.functional as F
-from torchmetrics.functional.text import word_error_rate
 
 
 def compute_wer(preds, targets, accents=None):
@@ -8,7 +8,8 @@ def compute_wer(preds, targets, accents=None):
     if accents is not None:
         assert len(preds) == len(accents), "Length of preds and accents must be the same"
 
-    overall_wer = word_error_rate(preds, targets).item()
+    metric = evaluate.load("wer")
+    overall_wer = metric.compute(predictions=preds, references=targets)
     if accents is None:
         return overall_wer, None
 
@@ -20,9 +21,9 @@ def compute_wer(preds, targets, accents=None):
 
     wer_per_accent = {}
     for accent_name in sorted(set(accents)):
-        accent_wer = word_error_rate(
-            preds_by_accent[accent_name], tgts_by_accent[accent_name]
-        ).item()
+        accent_wer = metric.compute(
+            predictions=preds_by_accent[accent_name], references=tgts_by_accent[accent_name]
+        )
         wer_per_accent[accent_name] = {
             "wer": accent_wer,
             "n": len(preds_by_accent[accent_name]),

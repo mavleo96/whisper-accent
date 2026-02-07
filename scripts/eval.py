@@ -21,7 +21,6 @@ from src.utils import compute_wer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-# Suppress HTTP request logging from httpx
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
@@ -53,12 +52,11 @@ def preprocess(item, processor):
     }
 
 
-def load_model_and_processor(model_name, device, dtype):
+def load_model_and_processor(model_name):
     processor = AutoProcessor.from_pretrained(model_name)
-    model = AutoModelForSpeechSeq2Seq.from_pretrained(model_name).to(device).to(dtype)
-    model.eval()
+    model = AutoModelForSpeechSeq2Seq.from_pretrained(model_name)
     if model.generation_config.is_multilingual:
-        model.generation_config.language = "<|en|>"
+        model.generation_config.language = "en"
         model.generation_config.task = "transcribe"
     model.generation_config.forced_decoder_ids = None
     return model, processor
@@ -70,7 +68,7 @@ def run_evaluation(model, processor, dataloader, device, dtype):
 
     for batch in tqdm(dataloader, desc="Evaluating"):
         feats = batch["input_features"].to(device).to(dtype)
-        mask = batch["attention_mask"].to(device).to(dtype)
+        mask = batch["attention_mask"].to(device)
 
         with torch.no_grad():
             pred_ids = model.generate(feats, attention_mask=mask)
@@ -138,18 +136,19 @@ def main():
     parser.add_argument("--dataset_name", type=str, default="westbrook/English_Accent_DataSet")
     parser.add_argument("--split", type=str, default="test", choices=["test", "validation"])
     parser.add_argument("--batch_size", type=int, default=16)
-    parser.add_argument("--device", type=str, default=None)
     parser.add_argument("--dtype", type=str, default="bfloat16")
     parser.add_argument("--output", type=str, default=None)
     args = parser.parse_args()
 
-    device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = getattr(torch, args.dtype)
     logger.info("device=%s dtype=%s", device, dtype)
     torch.set_float32_matmul_precision("high")
 
     logger.info("Loading model: %s", args.model_name)
-    model, processor = load_model_and_processor(args.model_name, device, dtype)
+    model, processor = load_model_and_processor(args.model_name)
+    model.to(device).to(dtype)
+    model.eval()
 
     logger.info("Loading dataset: %s split=%s", args.dataset_name, args.split)
     dataset = load_dataset(args.dataset_name, split=args.split)
