@@ -1,25 +1,26 @@
 #!/bin/bash
 
-# Multi-device CUDA training (GPUs 0 and 1)
-export CUDA_VISIBLE_DEVICES=0,1
-NPROC_PER_NODE=2
-
 # Model and Dataset Arguments
-export MODEL_TYPE="whisper"
+export MODEL_TYPE="whisper_accent"
 export BASE_MODEL_NAME="openai/whisper-small.en"
 export IS_MULTILINGUAL="False"
 export DATASET_NAME="westbrook/English_Accent_DataSet"
 
 # Checkpoint Arguments
-export OUTPUT_DIR="/workspace/checkpoints/whisper-small.en"
-export RUN_NAME="whisper-small.en-test-run-$(date +%Y%m%d-%H%M%S)"
-export HUB_MODEL_ID="mavleo96/whisper-small.en"
+export OUTPUT_DIR="/workspace/checkpoints/whisper-accent-small.en"
+export RUN_NAME="whisper-accent-small.en-decoder-only-baserun-$(date +%Y%m%d-%H%M%S)"
+export HUB_MODEL_ID="mavleo96/whisper-accent-small.en"
 
 # Wandb Arguments
 export WANDB_PROJECT="whisper-accent"
 export WANDB_ENTITY="mavleo96-team"
 
-torchrun --nproc_per_node=$NPROC_PER_NODE -m src.train \
+accelerate launch \
+    --num_processes 2 \
+    --num_machines 1 \
+    --mixed_precision fp16 \
+    --gpu_ids 0,1 \
+    -m src.train \
     --model_type $MODEL_TYPE \
     --base_model_name_or_path $BASE_MODEL_NAME \
     --is_multilingual $IS_MULTILINGUAL \
@@ -28,20 +29,17 @@ torchrun --nproc_per_node=$NPROC_PER_NODE -m src.train \
     --output_dir $OUTPUT_DIR \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 4 \
-    --gradient_accumulation_steps 8 \
+    --gradient_accumulation_steps 4 \
     --gradient_checkpointing True \
-    --tf32 False \
-    --bf16 True \
-    --fp16 False \
     --lambda_accent_loss 0.0 \
     --lambda_diversity_loss 0.0 \
     --optim adamw_torch \
-    --learning_rate 5e-6 \
-    --embedding_learning_rate 0.0 \
+    --learning_rate 1e-5 \
+    --embedding_learning_rate 5e-5 \
     --weight_decay 0.1 \
     --lr_scheduler_type linear \
     --warmup_steps 0.05 \
-    --max_steps 1000 \
+    --max_steps 5000 \
     --max_grad_norm 1.0 \
     --lora_enable True \
     --lora_r 16 \

@@ -136,7 +136,7 @@ def main():
     parser.add_argument("--dataset_name", type=str, default="westbrook/English_Accent_DataSet")
     parser.add_argument("--split", type=str, default="test", choices=["test", "validation"])
     parser.add_argument("--batch_size", type=int, default=16)
-    parser.add_argument("--dtype", type=str, default="bfloat16")
+    parser.add_argument("--dtype", type=str, default="float16")
     parser.add_argument("--output", type=str, default=None)
     args = parser.parse_args()
 
