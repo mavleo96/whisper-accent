@@ -169,7 +169,7 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
             )
 
         # On final compute, return the result
-        if compute_result and self.accelerator.is_main_process:
+        if compute_result:
             results = {}
             for name, metric in self.metrics_accumulators.items():
                 if name == "wer":
