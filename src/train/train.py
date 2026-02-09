@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 
 import torch.nn as nn
-from peft import LoraConfig, get_peft_model
 from transformers import Seq2SeqTrainingArguments
 
 from src.model import WhisperAccentForConditionalGeneration, WhisperAccentProcessor
@@ -28,7 +27,7 @@ class WhisperAccentTrainingArguments(Seq2SeqTrainingArguments):
     lambda_diversity_loss: float = 0.0
     embedding_learning_rate: float = 1e-4
     report_to: None | str | list[str] = field(
-        default=None,
+        default="none",
         metadata={"help": "The list of integrations to report logs to.", "nargs": "+"},
     )
 
@@ -49,10 +48,10 @@ class LoraArguments:
     task_type: str = "SEQ_2_SEQ_LM"
 
 
-def processor_init(model_args):
+def processor_init(base_model_name_or_path):
     # Load processor and add accent tokens to tokenizer
     # Note: BOS token updated from <|endoftext|> to <|startoftranscript|>
-    processor = WhisperAccentProcessor.from_pretrained(model_args.base_model_name_or_path)
+    processor = WhisperAccentProcessor.from_pretrained(base_model_name_or_path)
     processor.tokenizer.add_special_tokens(
         {
             "additional_special_tokens": list(ACCENTS.values()),
@@ -62,13 +61,15 @@ def processor_init(model_args):
     return processor
 
 
-def model_init(model_args, lora_args, processor):
+def model_init(base_model_name_or_path, processor):
     # Load whisper weights into whisper_accent model
     # and resize token embeddings + update generation config
-    model = WhisperAccentForConditionalGeneration.from_pretrained(
-        model_args.base_model_name_or_path
-    )
+    model = WhisperAccentForConditionalGeneration.from_pretrained(base_model_name_or_path)
+
+    # Update model config
     model.config.architectures = [model.__class__.__name__]
+    model.config.model_type = "whisper_accent"
+
     model.resize_token_embeddings(len(processor.tokenizer))
     model.generation_config.accent_to_id = {
         k: v for k, v in processor.tokenizer.vocab.items() if k in ACCENTS.values()
@@ -91,32 +92,6 @@ def model_init(model_args, lora_args, processor):
         model.generation_config.language = "en"
         model.generation_config.task = "transcribe"
     model.generation_config.forced_decoder_ids = None
-
-    # Add LoRA layers
-    if lora_args.lora_enable:
-        # Target linear layers in decoder
-        target_modules = []
-        for name, _ in model.named_modules():
-            m_list = ["q_proj", "k_proj", "v_proj", "out_proj", "fc1", "fc2"]
-            if "model.decoder" in name and any(suffix in name for suffix in m_list):
-                target_modules.append(name)
-
-        # Trainable token indices for new accent tokens
-        accent_token_indices = sorted(list(model.generation_config.accent_to_id.values()))
-
-        lora_config = LoraConfig(
-            r=lora_args.lora_r,
-            lora_alpha=lora_args.lora_alpha,
-            lora_dropout=lora_args.lora_dropout,
-            bias=lora_args.lora_bias,
-            use_rslora=lora_args.use_rslora,
-            target_modules=target_modules,
-            trainable_token_indices=accent_token_indices,
-            task_type=lora_args.task_type,
-            ensure_weight_tying=True,
-        )
-        model = get_peft_model(model, lora_config)
-    else:
-        raise NotImplementedError("Non-LoRA training is not implemented yet")
+    model.generation_config.return_timestamps = False
 
     return model
