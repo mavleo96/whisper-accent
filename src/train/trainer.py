@@ -82,8 +82,15 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         return optimizer_cls, optimizer_kwargs
 
     def log(self, logs, start_time=None):
+        # Note: This is a hack to prevent logging learning rate inside eval loop
+        inside_eval_loop = False if "loss" in logs else True
+
         # Log both learning_rate (main) and embedding_learning_rate when using two param groups
-        if self.optimizer is not None and len(self.optimizer.param_groups) >= 2:
+        if (
+            self.optimizer is not None
+            and len(self.optimizer.param_groups) >= 2
+            and not inside_eval_loop
+        ):
             lr_main = self.optimizer.param_groups[1]["lr"]
             lr_embed = self.optimizer.param_groups[0]["lr"]
             logs["learning_rate"] = lr_main.item() if torch.is_tensor(lr_main) else lr_main
