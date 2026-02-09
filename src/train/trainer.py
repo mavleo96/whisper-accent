@@ -146,12 +146,8 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
     def compute_diversity_loss(self):
         # Use unwrapped model so attribute access works under DDP (self.model may be wrapped)
         model = self.accelerator.unwrap_model(self.model)
-        accent_token_indices = sorted(list(model.generation_config.accent_to_id.values()))
-        embedding_layer = model.base_model.model.model.decoder.embed_tokens
-        accent_embeddings = (
-            embedding_layer.token_adapter.base_layer.weight[accent_token_indices]
-            + embedding_layer.token_adapter.trainable_tokens_delta["default"]
-        )
+        embedding_layer = model.get_input_embeddings()
+        accent_embeddings = embedding_layer.token_adapter.trainable_tokens_delta["default"]
 
         # Compute diversity loss
         return repulsive_loss(accent_embeddings, temperature=0.1)
