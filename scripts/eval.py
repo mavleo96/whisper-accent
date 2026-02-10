@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 import os
+import random
 import sys
 
 import torch
@@ -139,6 +140,11 @@ def main():
     parser.add_argument("--dtype", type=str, default="float16")
     parser.add_argument("--output", type=str, default=None)
     args = parser.parse_args()
+
+    random.seed(0)
+    torch.manual_seed(0)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(0)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = getattr(torch, args.dtype)

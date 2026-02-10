@@ -16,3 +16,6 @@ def load_model_from_pretrained(model_id):
     model = model.merge_and_unload()
 
     return model, processor
+
+
+__all__ = ["load_model_from_pretrained"]

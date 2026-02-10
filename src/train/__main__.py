@@ -1,5 +1,6 @@
 import logging
 import os
+import random
 
 import torch
 import torch.distributed as dist
@@ -26,6 +27,11 @@ def main():
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     logging.getLogger("httpx").setLevel(logging.WARNING)
+
+    random.seed(0)
+    torch.manual_seed(0)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(0)
 
     # Multi-device: use CUDA_VISIBLE_DEVICES (e.g. 0,1) and launch with torchrun --nproc_per_node=N
     local_rank = int(os.environ.get("LOCAL_RANK", -1))
