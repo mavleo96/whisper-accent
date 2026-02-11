@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+import torch
 import torch.nn as nn
 from transformers import Seq2SeqTrainingArguments
 
@@ -61,6 +62,21 @@ def processor_init(base_model_name_or_path):
     return processor
 
 
+def orthogonal_init(model, n_tokens):
+    # Note: this is making the forward pass very slow in the beginning
+    embeddings = model.get_input_embeddings()
+    device = embeddings.weight.device
+    dtype = embeddings.weight.dtype
+    d_model = model.config.d_model
+    with torch.no_grad():
+        A = torch.randn(d_model, n_tokens, device="cpu", dtype=dtype)
+        Q, _ = torch.linalg.qr(A)  # Q: (d_model, n_tokens)
+        new = Q.T.to(device=device).contiguous()  # (n_tokens, d_model)
+        embeddings.weight.data[-n_tokens:].copy_(new)
+    if hasattr(model, "tie_weights") and callable(model.tie_weights):
+        model.tie_weights()
+
+
 def model_init(base_model_name_or_path, processor):
     # Load whisper weights into whisper_accent model
     # and resize token embeddings + update generation config
@@ -71,6 +87,7 @@ def model_init(base_model_name_or_path, processor):
     model.config.model_type = "whisper_accent"
 
     model.resize_token_embeddings(len(processor.tokenizer))
+    # orthogonal_init(model, len(ACCENTS))
     model.generation_config.accent_to_id = {
         k: v for k, v in processor.tokenizer.vocab.items() if k in ACCENTS.values()
     }

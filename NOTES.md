@@ -85,3 +85,13 @@ Overfitting:
 - Training Phase:
   - 1000 steps learning the accent embedding 1e-4
   - 2000 steps learning the model 1e-5
+- [TESTED] small: 1e-5 is good, medium: 5e-6 overfits and 1e-6 is slow
+
+
+Results:
+- Accent embedding idea largely doesn't work
+
+New Ideas:
+- Adative Normalization in decoder layers
+  - Complicated; needs double optimizer setup
+  -
