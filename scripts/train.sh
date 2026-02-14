@@ -32,11 +32,10 @@ accelerate launch \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 4 \
     --gradient_checkpointing True \
-    --lambda_accent_loss 0.0 \
-    --lambda_diversity_loss 0.0 \
     --optim adamw_torch \
-    --learning_rate 1e-5 \
-    --embedding_learning_rate 5e-5 \
+    --learning_rate 5e-5 \
+    --embedding_learning_rate 1e-4 \
+    --lora_learning_rate 1e-5 \
     --weight_decay 0.01 \
     --lr_scheduler_type linear \
     --warmup_steps 0.05 \

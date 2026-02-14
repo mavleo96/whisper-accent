@@ -52,6 +52,13 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         optimizer_grouped_parameters = [
             {
                 "params": [
+                    p for n, p in model.named_parameters() if p.requires_grad and "modulation" in n
+                ],
+                "lr": self.args.learning_rate,
+                "weight_decay": 0.0,
+            },
+            {
+                "params": [
                     p
                     for n, p in model.named_parameters()
                     if p.requires_grad and "embed_accents" in n
@@ -61,11 +68,9 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
             },
             {
                 "params": [
-                    p
-                    for n, p in model.named_parameters()
-                    if p.requires_grad and "embed_accents" not in n
+                    p for n, p in model.named_parameters() if p.requires_grad and "lora" in n
                 ],
-                "lr": self.args.learning_rate,
+                "lr": self.args.lora_learning_rate,
                 "weight_decay": self.args.weight_decay,
             },
         ]
@@ -84,17 +89,16 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         inside_eval_loop = False if "loss" in logs else True
 
         # Log both learning_rate (main) and embedding_learning_rate when using two param groups
-        if (
-            self.optimizer is not None
-            and len(self.optimizer.param_groups) >= 2
-            and not inside_eval_loop
-        ):
-            lr_main = self.optimizer.param_groups[1]["lr"]
-            lr_embed = self.optimizer.param_groups[0]["lr"]
+        if self.optimizer is not None and not inside_eval_loop:
+            lr_main = self.optimizer.param_groups[0]["lr"]
+            lr_embed = self.optimizer.param_groups[1]["lr"]
             logs["learning_rate"] = lr_main.item() if torch.is_tensor(lr_main) else lr_main
             logs["embedding_learning_rate"] = (
                 lr_embed.item() if torch.is_tensor(lr_embed) else lr_embed
             )
+            if len(self.optimizer.param_groups) >= 3:
+                lr_lora = self.optimizer.param_groups[2]["lr"]
+                logs["lora_learning_rate"] = lr_lora.item() if torch.is_tensor(lr_lora) else lr_lora
         super().log(logs, start_time)
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
