@@ -71,7 +71,7 @@ def main():
     if lora_args.lora_enable:
         # Target linear layers
         target_modules = []
-        modules_to_save = []
+        modules_to_save = ["model.decoder.embed_accents"]
         m_list = ["q_proj", "k_proj", "v_proj", "out_proj", "fc1", "fc2"]
         for name, _ in model.named_modules():
             if any(suffix in name for suffix in m_list):
