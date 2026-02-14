@@ -1,11 +1,12 @@
 from dataclasses import dataclass, field
 
-import torch
 import torch.nn as nn
-from transformers import Seq2SeqTrainingArguments
+from transformers import Seq2SeqTrainingArguments, WhisperForConditionalGeneration
 
-from src.model import WhisperAccentForConditionalGeneration, WhisperAccentProcessor
-from src.model.tokenization import ACCENTS
+from src.model import (
+    WhisperAccentConfig,
+    WhisperAccentForConditionalGeneration,
+)
 
 
 @dataclass
@@ -24,8 +25,6 @@ class DatasetArguments:
 
 @dataclass
 class WhisperAccentTrainingArguments(Seq2SeqTrainingArguments):
-    lambda_accent_loss: float = 0.0
-    lambda_diversity_loss: float = 0.0
     embedding_learning_rate: float = 1e-4
     report_to: None | str | list[str] = field(
         default="none",
@@ -49,60 +48,47 @@ class LoraArguments:
     task_type: str = "SEQ_2_SEQ_LM"
 
 
-def processor_init(base_model_name_or_path):
-    # Load processor and add accent tokens to tokenizer
-    # Note: BOS token updated from <|endoftext|> to <|startoftranscript|>
-    processor = WhisperAccentProcessor.from_pretrained(base_model_name_or_path)
-    processor.tokenizer.add_special_tokens(
-        {
-            "additional_special_tokens": list(ACCENTS.values()),
-            "bos_token": "<|startoftranscript|>",
-        }
-    )
-    return processor
+def model_init(base_model_name_or_path):
+    # Load pretrained whisper model
+    pretrained_model = WhisperForConditionalGeneration.from_pretrained(base_model_name_or_path)
+    state_dict = pretrained_model.state_dict()
 
-
-def orthogonal_init(model, n_tokens):
-    # Note: this is making the forward pass very slow in the beginning
-    embeddings = model.get_input_embeddings()
-    device = embeddings.weight.device
-    dtype = embeddings.weight.dtype
-    d_model = model.config.d_model
-    with torch.no_grad():
-        A = torch.randn(d_model, n_tokens, device="cpu", dtype=dtype)
-        Q, _ = torch.linalg.qr(A)  # Q: (d_model, n_tokens)
-        new = Q.T.to(device=device).contiguous()  # (n_tokens, d_model)
-        embeddings.weight.data[-n_tokens:].copy_(new)
-    if hasattr(model, "tie_weights") and callable(model.tie_weights):
-        model.tie_weights()
-
-
-def model_init(base_model_name_or_path, processor):
     # Load whisper weights into whisper_accent model
-    # and resize token embeddings + update generation config
-    model = WhisperAccentForConditionalGeneration.from_pretrained(base_model_name_or_path)
+    config = WhisperAccentConfig.from_pretrained(base_model_name_or_path)
+    model = WhisperAccentForConditionalGeneration(config)
+    missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
+    for layer_idx, layer in enumerate(model.get_decoder().layers):
+        # Update self attn layer norm weights and biases
+        weight = state_dict[f"model.decoder.layers.{layer_idx}.self_attn_layer_norm.weight"]
+        bias = state_dict[f"model.decoder.layers.{layer_idx}.self_attn_layer_norm.bias"]
+        layer.self_attn_layer_norm.norm.weight.data.copy_(weight)
+        layer.self_attn_layer_norm.norm.bias.data.copy_(bias)
+        nn.init.zeros_(layer.self_attn_layer_norm.modulation[-1].weight)
 
-    # Update model config
+        # Update encoder attn layer norm weights and biases
+        weight = state_dict[f"model.decoder.layers.{layer_idx}.encoder_attn_layer_norm.weight"]
+        bias = state_dict[f"model.decoder.layers.{layer_idx}.encoder_attn_layer_norm.bias"]
+        layer.encoder_attn_layer_norm.norm.weight.data.copy_(weight)
+        layer.encoder_attn_layer_norm.norm.bias.data.copy_(bias)
+        nn.init.zeros_(layer.encoder_attn_layer_norm.modulation[-1].weight)
+
+        # Update final layer norm weights and biases
+        weight = state_dict[f"model.decoder.layers.{layer_idx}.final_layer_norm.weight"]
+        bias = state_dict[f"model.decoder.layers.{layer_idx}.final_layer_norm.bias"]
+        layer.final_layer_norm.norm.weight.data.copy_(weight)
+        layer.final_layer_norm.norm.bias.data.copy_(bias)
+        nn.init.zeros_(layer.final_layer_norm.modulation[-1].weight)
+
+    nn.init.normal_(model.get_accent_embeddings().weight, mean=0.0, std=0.02)
+
+    # Update model config and generation config
     model.config.architectures = [model.__class__.__name__]
     model.config.model_type = "whisper_accent"
+    model.generation_config = pretrained_model.generation_config
 
-    model.resize_token_embeddings(len(processor.tokenizer))
-    # orthogonal_init(model, len(ACCENTS))
-    model.generation_config.accent_to_id = {
-        k: v for k, v in processor.tokenizer.vocab.items() if k in ACCENTS.values()
-    }
-    # Note: proj_out is tied to decoder.embed_tokens; resize token embeddings weight tying is
-    # not working
-    model.proj_out = nn.Linear(
-        model.proj_out.in_features,
-        len(processor.tokenizer),
-        bias=model.proj_out.bias is not None,
-    )
-    model.tie_weights()
-
-    # Update bos token id; https://github.com/huggingface/transformers/issues/24342
-    model.config.bos_token_id = processor.tokenizer.bos_token_id
-    model.generation_config.bos_token_id = processor.tokenizer.bos_token_id
+    # # Update bos token id; https://github.com/huggingface/transformers/issues/24342
+    # model.config.bos_token_id = processor.tokenizer.bos_token_id
+    # model.generation_config.bos_token_id = processor.tokenizer.bos_token_id
 
     # Update generation config; https://github.com/openai/whisper/discussions/2094
     if model.generation_config.is_multilingual:

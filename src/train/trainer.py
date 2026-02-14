@@ -1,10 +1,8 @@
 import evaluate
 import torch
-import torch.nn.functional as F
 from transformers import Seq2SeqTrainer
 
 from src.constants import IGNORE_INDEX
-from src.utils import repulsive_loss
 
 
 class WhisperAccentTrainer(Seq2SeqTrainer):
@@ -21,7 +19,7 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
     ):
         assert args.batch_eval_metrics, "Batch eval metrics must be enabled"
         assert "inputs" in args.include_for_metrics, "Inputs must be included for metrics"
-        assert compute_metrics in ["none", "all", "wer", "accent_accuracy"], (
+        assert compute_metrics in ["none", "all", "wer"], (  # , "accent_accuracy"], (
             "Invalid compute_metrics value"
         )
         super().__init__(
@@ -36,7 +34,7 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         )
 
         if compute_metrics == "all":
-            compute_metrics = ["wer", "accent_accuracy"]
+            compute_metrics = ["wer"]  # , "accent_accuracy"]
         elif compute_metrics == "none":
             compute_metrics = []
         else:
@@ -46,8 +44,8 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         for metric in compute_metrics:
             if metric == "wer":
                 self.metrics_accumulators["wer"] = evaluate.load("wer")
-            if metric == "accent_accuracy":
-                self.metrics_accumulators["accent_accuracy"] = evaluate.load("accuracy")
+            # if metric == "accent_accuracy":
+            #     self.metrics_accumulators["accent_accuracy"] = evaluate.load("accuracy")
 
     def create_optimizer(self):
         model = self.model
@@ -56,7 +54,7 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
                 "params": [
                     p
                     for n, p in model.named_parameters()
-                    if p.requires_grad and "trainable_tokens_delta" in n
+                    if p.requires_grad and "embed_accents" in n
                 ],
                 "lr": self.args.embedding_learning_rate,
                 "weight_decay": 0.0,
@@ -65,7 +63,7 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
                 "params": [
                     p
                     for n, p in model.named_parameters()
-                    if p.requires_grad and "trainable_tokens_delta" not in n
+                    if p.requires_grad and "embed_accents" not in n
                 ],
                 "lr": self.args.learning_rate,
                 "weight_decay": self.args.weight_decay,
@@ -107,21 +105,21 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         # Transcription Loss
         transcription_loss = outputs.loss
 
-        # Compute Accent Loss
-        accent_loss = 0.0
-        if self.args.lambda_accent_loss > 0:
-            accent_loss = self.compute_accent_loss(outputs, inputs)
+        # # Compute Accent Loss
+        # accent_loss = 0.0
+        # if self.args.lambda_accent_loss > 0:
+        #     accent_loss = self.compute_accent_loss(outputs, inputs)
 
-        # Compute diversity loss
-        diversity_loss = 0.0
-        if self.args.lambda_diversity_loss > 0:
-            diversity_loss = self.compute_diversity_loss()
+        # # Compute diversity loss
+        # diversity_loss = 0.0
+        # if self.args.lambda_diversity_loss > 0:
+        #     diversity_loss = self.compute_diversity_loss()
 
         # Compute total loss
         loss = (
             transcription_loss
-            + self.args.lambda_accent_loss * accent_loss
-            + self.args.lambda_diversity_loss * diversity_loss
+            # + self.args.lambda_accent_loss * accent_loss
+            # + self.args.lambda_diversity_loss * diversity_loss
         )
 
         if self.args.average_tokens_across_devices and num_items_in_batch is not None:
@@ -129,44 +127,44 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
 
         return (loss, outputs) if return_outputs else loss
 
-    def compute_accent_loss(self, outputs, inputs):
-        model = self.accelerator.unwrap_model(self.model)
-        is_multilingual = model.generation_config.is_multilingual
-        accent_token_position = 2 if is_multilingual else 0
-        accent_token_indices = sorted(list(model.generation_config.accent_to_id.values()))
-        min_label = min(model.generation_config.accent_to_id.values())
+    # def compute_accent_loss(self, outputs, inputs):
+    #     model = self.accelerator.unwrap_model(self.model)
+    #     is_multilingual = model.generation_config.is_multilingual
+    #     accent_token_position = 2 if is_multilingual else 0
+    #     accent_token_indices = sorted(list(model.generation_config.accent_to_id.values()))
+    #     min_label = min(model.generation_config.accent_to_id.values())
 
-        # Get accent labels and logits
-        accent_labels = (inputs["labels"][:, accent_token_position] - min_label).long()
-        accent_logits = outputs.logits[:, accent_token_position, accent_token_indices]
+    #     # Get accent labels and logits
+    #     accent_labels = (inputs["labels"][:, accent_token_position] - min_label).long()
+    #     accent_logits = outputs.logits[:, accent_token_position, accent_token_indices]
 
-        # Compute accent loss
-        return F.cross_entropy(accent_logits, accent_labels, reduction="mean")
+    #     # Compute accent loss
+    #     return F.cross_entropy(accent_logits, accent_labels, reduction="mean")
 
-    def compute_diversity_loss(self):
-        # Use unwrapped model so attribute access works under DDP (self.model may be wrapped)
-        model = self.accelerator.unwrap_model(self.model)
-        embedding_layer = model.get_input_embeddings()
-        accent_embeddings = embedding_layer.token_adapter.trainable_tokens_delta["default"]
+    # def compute_diversity_loss(self):
+    #     # Use unwrapped model so attribute access works under DDP (self.model may be wrapped)
+    #     model = self.accelerator.unwrap_model(self.model)
+    #     embedding_layer = model.get_input_embeddings()
+    #     accent_embeddings = embedding_layer.token_adapter.trainable_tokens_delta["default"]
 
-        # Compute diversity loss
-        return repulsive_loss(accent_embeddings, temperature=0.1)
+    #     # Compute diversity loss
+    #     return repulsive_loss(accent_embeddings, temperature=0.1)
 
     def compute_metrics(self, eval_pred, compute_result=True):
         predictions = eval_pred.predictions
         label_ids = eval_pred.label_ids
-        inputs = eval_pred.inputs
+        # inputs = eval_pred.inputs
 
         # Update metric accumulators
         if "wer" in self.metrics_accumulators:
             label_str, pred_str = self._get_normalized_labels_and_preds(label_ids, predictions)
             self.metrics_accumulators["wer"].add_batch(predictions=pred_str, references=label_str)
 
-        if "accent_accuracy" in self.metrics_accumulators:
-            preds, labels = self._get_accent_labels_and_preds(inputs)
-            self.metrics_accumulators["accent_accuracy"].add_batch(
-                predictions=preds, references=labels
-            )
+        # if "accent_accuracy" in self.metrics_accumulators:
+        #     preds, labels = self._get_accent_labels_and_preds(inputs)
+        #     self.metrics_accumulators["accent_accuracy"].add_batch(
+        #         predictions=preds, references=labels
+        #     )
 
         # On final compute, return the result
         if compute_result:
@@ -174,8 +172,8 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
             for name, metric in self.metrics_accumulators.items():
                 if name == "wer":
                     results[name] = metric.compute()
-                if name == "accent_accuracy":
-                    results[name] = metric.compute()["accuracy"]
+                # if name == "accent_accuracy":
+                #     results[name] = metric.compute()["accuracy"]
             return results
         return {}
 
@@ -194,23 +192,23 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         pred_str = [tokenizer.normalize(s) for s in raw_pred_str]
         return label_str, pred_str
 
-    def _get_accent_labels_and_preds(self, inputs):
-        model = self.accelerator.unwrap_model(self.model)
-        is_multilingual = model.generation_config.is_multilingual
-        accent_token_position = 2 if is_multilingual else 0
+    # def _get_accent_labels_and_preds(self, inputs):
+    #     model = self.accelerator.unwrap_model(self.model)
+    #     is_multilingual = model.generation_config.is_multilingual
+    #     accent_token_position = 2 if is_multilingual else 0
 
-        init_tokens = model._retrieve_init_tokens(
-            inputs["input_features"],
-            inputs["input_features"].shape[0],
-            model.generation_config,
-            model.config,
-            3000,
-            {},
-        )
-        preds = init_tokens[:, accent_token_position + 1]
-        labels = inputs["labels"][:, accent_token_position]
-        min_label = min(model.generation_config.accent_to_id.values())
-        return (preds - min_label).long(), (labels - min_label).long()
+    #     init_tokens = model._retrieve_init_tokens(
+    #         inputs["input_features"],
+    #         inputs["input_features"].shape[0],
+    #         model.generation_config,
+    #         model.config,
+    #         3000,
+    #         {},
+    #     )
+    #     preds = init_tokens[:, accent_token_position + 1]
+    #     labels = inputs["labels"][:, accent_token_position]
+    #     min_label = min(model.generation_config.accent_to_id.values())
+    #     return (preds - min_label).long(), (labels - min_label).long()
 
 
 __all__ = ["WhisperAccentTrainer"]

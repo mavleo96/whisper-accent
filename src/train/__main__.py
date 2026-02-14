@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import re
 
 import torch
 import torch.distributed as dist
@@ -18,7 +19,6 @@ from .train import (
     ModelArguments,
     WhisperAccentTrainingArguments,
     model_init,
-    processor_init,
 )
 from .trainer import WhisperAccentTrainer
 
@@ -54,8 +54,8 @@ def main():
     # Load model and processor; whisper / whisper_accent models are supported
     logger.info(f"Loading {model_args.model_type} model from {model_args.base_model_name_or_path}")
     if model_args.model_type == "whisper_accent":
-        processor = processor_init(model_args.base_model_name_or_path)
-        model = model_init(model_args.base_model_name_or_path, processor)
+        processor = WhisperProcessor.from_pretrained(model_args.base_model_name_or_path)
+        model = model_init(model_args.base_model_name_or_path)
     elif model_args.model_type == "whisper":
         processor = WhisperProcessor.from_pretrained(model_args.base_model_name_or_path)
         model = WhisperForConditionalGeneration.from_pretrained(model_args.base_model_name_or_path)
@@ -68,14 +68,19 @@ def main():
         raise ValueError(f"Invalid model type: {model_args.model_type}")
 
     # Add LoRA layers
-    # Note: Non-LoRA training is not implemented yet
     if lora_args.lora_enable:
         # Target linear layers
         target_modules = []
+        modules_to_save = []
         m_list = ["q_proj", "k_proj", "v_proj", "out_proj", "fc1", "fc2"]
         for name, _ in model.named_modules():
             if any(suffix in name for suffix in m_list):
                 target_modules.append(name)
+            elif re.search(
+                r"model.decoder.layers.\d+.(self_attn_layer_norm|encoder_attn_layer_norm|final_layer_norm).modulation.1",
+                name,
+            ):
+                modules_to_save.append(name)
 
         lora_config = LoraConfig(
             r=lora_args.lora_r,
@@ -84,20 +89,26 @@ def main():
             bias=lora_args.lora_bias,
             use_rslora=lora_args.use_rslora,
             target_modules=target_modules,
+            modules_to_save=modules_to_save,
             task_type=lora_args.task_type,
             ensure_weight_tying=True,
         )
-
-        # Trainable token indices for new accent tokens
-        if model_args.model_type == "whisper_accent":
-            accent_token_indices = sorted(list(model.generation_config.accent_to_id.values()))
-            lora_config.trainable_token_indices = accent_token_indices
 
         model = get_peft_model(model, lora_config)
         logger.info("Lora enabled")
         model.print_trainable_parameters()
     else:
-        raise NotImplementedError("Non-LoRA training is not implemented yet")
+        # Freeze everthing except adaptive layer weights and embed_accents
+        for name, param in model.named_parameters():
+            if re.search(
+                r"model.decoder.layers.\d+.(self_attn_layer_norm|encoder_attn_layer_norm|final_layer_norm).modulation.1.weight",
+                name,
+            ):
+                param.requires_grad = True
+            elif name == "model.decoder.embed_accents.weight":
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
 
     # Initialize datasets and data collator
     logger.info("Initializing datasets and data collator")
