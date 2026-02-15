@@ -10,6 +10,7 @@ from .modelling_outputs import WhisperAccentEncoderOutput
 class AccentClassifier(nn.Module):
     def __init__(self, config: WhisperAccentConfig) -> None:
         super().__init__()
+        self.config = config
 
         num_layers = config.num_hidden_layers + 1  # transformer layers + input embeddings
         self.layer_weights = nn.Parameter(torch.ones(num_layers) / num_layers)

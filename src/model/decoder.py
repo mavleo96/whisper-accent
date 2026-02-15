@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from transformers.cache_utils import DynamicCache, EncoderDecoderCache
 from transformers.masking_utils import create_causal_mask
 from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
@@ -107,7 +108,7 @@ class WhisperAccentDecoder(WhisperDecoder):
         past_key_values=None,
         inputs_embeds=None,
         position_ids=None,
-        accent_ids=None,
+        accent_logits=None,
         use_cache=None,
         output_attentions=None,
         output_hidden_states=None,
@@ -183,8 +184,10 @@ class WhisperAccentDecoder(WhisperDecoder):
             )
 
         # embed accent ids
-        if accent_ids is not None:
-            accent_embeds = self.embed_accents(accent_ids).unsqueeze(1)
+        if accent_logits is not None:
+            weights = F.softmax(accent_logits, dim=-1)
+            accent_embeds = weights @ self.embed_accents.weight
+            accent_embeds = accent_embeds.unsqueeze(1)
         else:
             accent_embeds = None
 

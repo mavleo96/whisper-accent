@@ -6,17 +6,18 @@ from transformers import (
     WhisperModel,
 )
 from transformers.cache_utils import Cache
-from transformers.modeling_outputs import (
-    BaseModelOutput,
-    Seq2SeqLMOutput,
-    Seq2SeqModelOutput,
-)
 from transformers.models.whisper.modeling_whisper import (
     shift_tokens_right,
 )
 
 from .configuration import WhisperAccentConfig
 from .decoder import WhisperAccentDecoder
+from .encoder import WhisperAccentEncoder
+from .modelling_outputs import (
+    WhisperAccentEncoderOutput,
+    WhisperAccentSeq2SeqLMOutput,
+    WhisperAccentSeq2SeqModelOutput,
+)
 
 
 class WhisperAccentModel(WhisperModel):
@@ -25,6 +26,7 @@ class WhisperAccentModel(WhisperModel):
     def __init__(self, config: WhisperConfig):
         super().__init__(config)
 
+        self.encoder = WhisperAccentEncoder(config)
         self.decoder = WhisperAccentDecoder(config)
         # Initialize weights and apply final processing
         self.post_init()
@@ -49,7 +51,7 @@ class WhisperAccentModel(WhisperModel):
         return_dict: bool | None = None,
         cache_position: torch.LongTensor | None = None,
         **kwargs,
-    ) -> tuple[torch.Tensor] | Seq2SeqModelOutput:
+    ) -> tuple[torch.Tensor] | WhisperAccentSeq2SeqModelOutput:
         output_attentions = (
             output_attentions if output_attentions is not None else self.config.output_attentions
         )
@@ -72,13 +74,14 @@ class WhisperAccentModel(WhisperModel):
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict,
             )
-        # If the user passed a tuple for encoder_outputs, we wrap it in a BaseModelOutput when
-        # return_dict=True
-        elif return_dict and not isinstance(encoder_outputs, BaseModelOutput):
-            encoder_outputs = BaseModelOutput(
+        # If the user passed a tuple for encoder_outputs, we wrap it in a WhisperAccentEncoderOutput
+        # when return_dict=True
+        elif return_dict and not isinstance(encoder_outputs, WhisperAccentEncoderOutput):
+            encoder_outputs = WhisperAccentEncoderOutput(
                 last_hidden_state=encoder_outputs[0],
                 hidden_states=encoder_outputs[1] if len(encoder_outputs) > 1 else None,
                 attentions=encoder_outputs[2] if len(encoder_outputs) > 2 else None,
+                accent_logits=encoder_outputs[3] if len(encoder_outputs) > 3 else None,
             )
 
         # decoder outputs consists of (dec_features, past_key_values, dec_hidden, dec_attn)
@@ -89,7 +92,7 @@ class WhisperAccentModel(WhisperModel):
             past_key_values=past_key_values,
             inputs_embeds=decoder_inputs_embeds,
             position_ids=decoder_position_ids,
-            accent_ids=accent_ids,
+            accent_logits=encoder_outputs[-1],
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
@@ -100,7 +103,7 @@ class WhisperAccentModel(WhisperModel):
         if not return_dict:
             return decoder_outputs + encoder_outputs
 
-        return Seq2SeqModelOutput(
+        return WhisperAccentSeq2SeqModelOutput(
             last_hidden_state=decoder_outputs.last_hidden_state,
             past_key_values=decoder_outputs.past_key_values,
             decoder_hidden_states=decoder_outputs.hidden_states,
@@ -109,6 +112,7 @@ class WhisperAccentModel(WhisperModel):
             encoder_last_hidden_state=encoder_outputs.last_hidden_state,
             encoder_hidden_states=encoder_outputs.hidden_states,
             encoder_attentions=encoder_outputs.attentions,
+            accent_logits=encoder_outputs.accent_logits,
         )
 
 
@@ -143,7 +147,7 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
         return_dict: bool | None = None,
         cache_position: torch.LongTensor | None = None,
         **kwargs,
-    ) -> tuple[torch.Tensor] | Seq2SeqLMOutput:
+    ) -> tuple[torch.Tensor] | WhisperAccentSeq2SeqLMOutput:
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if labels is not None:
@@ -186,7 +190,7 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
             output = (lm_logits,) + outputs[1:]
             return ((loss,) + output) if loss is not None else output
 
-        return Seq2SeqLMOutput(
+        return WhisperAccentSeq2SeqLMOutput(
             loss=loss,
             logits=lm_logits,
             past_key_values=outputs.past_key_values,
@@ -196,6 +200,7 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
             encoder_last_hidden_state=outputs.encoder_last_hidden_state,
             encoder_hidden_states=outputs.encoder_hidden_states,
             encoder_attentions=outputs.encoder_attentions,
+            accent_logits=outputs.accent_logits,
         )
 
 
