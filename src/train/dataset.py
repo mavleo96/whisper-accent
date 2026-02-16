@@ -149,7 +149,7 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         #     batch["attention_mask"] = batch["attention_mask"][:, 1:]
 
         # Add accent ids
-        batch["accent_ids"] = torch.tensor([feature["accent_id"] for feature in features])
+        batch["accent_labels"] = torch.tensor([feature["accent_id"] for feature in features])
 
         return batch
 

@@ -44,7 +44,7 @@ class WhisperAccentModel(WhisperModel):
         past_key_values: Cache | None = None,
         decoder_inputs_embeds: tuple[torch.FloatTensor] | None = None,
         decoder_position_ids: tuple[torch.LongTensor] | None = None,
-        accent_ids: torch.LongTensor | None = None,
+        accent_labels: torch.LongTensor | None = None,
         use_cache: bool | None = None,
         output_attentions: bool | None = None,
         output_hidden_states: bool | None = None,
@@ -72,6 +72,7 @@ class WhisperAccentModel(WhisperModel):
                 input_features,
                 output_attentions=output_attentions,
                 output_hidden_states=output_hidden_states,
+                accent_labels=accent_labels,
                 return_dict=return_dict,
             )
         # If the user passed a tuple for encoder_outputs, we wrap it in a WhisperAccentEncoderOutput
@@ -81,7 +82,8 @@ class WhisperAccentModel(WhisperModel):
                 last_hidden_state=encoder_outputs[0],
                 hidden_states=encoder_outputs[1] if len(encoder_outputs) > 1 else None,
                 attentions=encoder_outputs[2] if len(encoder_outputs) > 2 else None,
-                accent_logits=encoder_outputs[3] if len(encoder_outputs) > 3 else None,
+                accent_loss=encoder_outputs[3] if len(encoder_outputs) > 3 else None,
+                accent_logits=encoder_outputs[4] if len(encoder_outputs) > 4 else None,
             )
 
         # decoder outputs consists of (dec_features, past_key_values, dec_hidden, dec_attn)
@@ -112,6 +114,7 @@ class WhisperAccentModel(WhisperModel):
             encoder_last_hidden_state=encoder_outputs.last_hidden_state,
             encoder_hidden_states=encoder_outputs.hidden_states,
             encoder_attentions=encoder_outputs.attentions,
+            accent_loss=encoder_outputs.accent_loss,
             accent_logits=encoder_outputs.accent_logits,
         )
 
@@ -140,7 +143,7 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
         decoder_inputs_embeds: tuple[torch.FloatTensor] | None = None,
         decoder_position_ids: tuple[torch.LongTensor] | None = None,
         labels: torch.LongTensor | None = None,
-        accent_ids: torch.LongTensor | None = None,
+        accent_labels: torch.LongTensor | None = None,
         use_cache: bool | None = None,
         output_attentions: bool | None = None,
         output_hidden_states: bool | None = None,
@@ -170,7 +173,7 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
             past_key_values=past_key_values,
             decoder_inputs_embeds=decoder_inputs_embeds,
             decoder_position_ids=decoder_position_ids,
-            accent_ids=accent_ids,
+            accent_labels=accent_labels,
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
@@ -200,6 +203,7 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
             encoder_last_hidden_state=outputs.encoder_last_hidden_state,
             encoder_hidden_states=outputs.encoder_hidden_states,
             encoder_attentions=outputs.encoder_attentions,
+            accent_loss=outputs.accent_loss,
             accent_logits=outputs.accent_logits,
         )
 

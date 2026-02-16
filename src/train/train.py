@@ -27,7 +27,8 @@ class DatasetArguments:
 class WhisperAccentTrainingArguments(Seq2SeqTrainingArguments):
     learning_rate: float = 5e-5
     embedding_learning_rate: float = 1e-4
-    lora_learning_rate: float = 1e-5
+    accent_classifier_learning_rate: float = 5e-5
+    lambda_accent: float = 1.0
     report_to: None | str | list[str] = field(
         default="none",
         metadata={"help": "The list of integrations to report logs to.", "nargs": "+"},
@@ -39,15 +40,16 @@ class WhisperAccentTrainingArguments(Seq2SeqTrainingArguments):
         self.batch_eval_metrics = True
 
 
-@dataclass
-class LoraArguments:
-    lora_enable: bool = True
-    lora_r: int = 32
-    lora_alpha: int = 64
-    lora_dropout: float = 0.05
-    lora_bias: str = "none"
-    use_rslora: bool = True
-    task_type: str = "SEQ_2_SEQ_LM"
+def init_adaln_weights(module, state_dict, name):
+    # Initialize modulation weights to 0
+    nn.init.zeros_(module.modulation[-1].weight)
+
+    # Copy old gamma and beta as bias in the modulation layer
+    weight = state_dict[f"{name}.weight"]
+    module.modulation[-1].bias[: module.hidden_dim].data.copy_(weight)
+    if f"{name}.bias" in state_dict:
+        bias = state_dict[f"{name}.bias"]
+        module.modulation[-1].bias[module.hidden_dim :].data.copy_(bias)
 
 
 def model_init(base_model_name_or_path):
@@ -60,26 +62,19 @@ def model_init(base_model_name_or_path):
     model = WhisperAccentForConditionalGeneration(config)
     missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
     for layer_idx, layer in enumerate(model.get_decoder().layers):
-        # Update self attn layer norm weights and biases
-        weight = state_dict[f"model.decoder.layers.{layer_idx}.self_attn_layer_norm.weight"]
-        bias = state_dict[f"model.decoder.layers.{layer_idx}.self_attn_layer_norm.bias"]
-        layer.self_attn_layer_norm.norm.weight.data.copy_(weight)
-        layer.self_attn_layer_norm.norm.bias.data.copy_(bias)
-        nn.init.zeros_(layer.self_attn_layer_norm.modulation[-1].weight)
-
-        # Update encoder attn layer norm weights and biases
-        weight = state_dict[f"model.decoder.layers.{layer_idx}.encoder_attn_layer_norm.weight"]
-        bias = state_dict[f"model.decoder.layers.{layer_idx}.encoder_attn_layer_norm.bias"]
-        layer.encoder_attn_layer_norm.norm.weight.data.copy_(weight)
-        layer.encoder_attn_layer_norm.norm.bias.data.copy_(bias)
-        nn.init.zeros_(layer.encoder_attn_layer_norm.modulation[-1].weight)
-
-        # Update final layer norm weights and biases
-        weight = state_dict[f"model.decoder.layers.{layer_idx}.final_layer_norm.weight"]
-        bias = state_dict[f"model.decoder.layers.{layer_idx}.final_layer_norm.bias"]
-        layer.final_layer_norm.norm.weight.data.copy_(weight)
-        layer.final_layer_norm.norm.bias.data.copy_(bias)
-        nn.init.zeros_(layer.final_layer_norm.modulation[-1].weight)
+        init_adaln_weights(
+            layer.self_attn_layer_norm,
+            state_dict,
+            f"model.decoder.layers.{layer_idx}.self_attn_layer_norm",
+        )
+        init_adaln_weights(
+            layer.encoder_attn_layer_norm,
+            state_dict,
+            f"model.decoder.layers.{layer_idx}.encoder_attn_layer_norm",
+        )
+        init_adaln_weights(
+            layer.final_layer_norm, state_dict, f"model.decoder.layers.{layer_idx}.final_layer_norm"
+        )
 
     nn.init.normal_(model.get_accent_embeddings().weight, mean=0.0, std=0.02)
 

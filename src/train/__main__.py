@@ -1,11 +1,9 @@
 import logging
 import os
 import random
-import re
 
 import torch
 import torch.distributed as dist
-from peft import LoraConfig, get_peft_model
 from transformers import (
     HfArgumentParser,
     WhisperForConditionalGeneration,
@@ -15,7 +13,6 @@ from transformers import (
 from .dataset import DataCollatorSpeechSeq2SeqWithPadding, WhisperDataset
 from .train import (
     DatasetArguments,
-    LoraArguments,
     ModelArguments,
     WhisperAccentTrainingArguments,
     model_init,
@@ -46,10 +43,9 @@ def main():
             ModelArguments,
             DatasetArguments,
             WhisperAccentTrainingArguments,
-            LoraArguments,
         ]
     )
-    model_args, dataset_args, training_args, lora_args = parser.parse_args_into_dataclasses()
+    model_args, dataset_args, training_args = parser.parse_args_into_dataclasses()
 
     # Load model and processor; whisper / whisper_accent models are supported
     logger.info(f"Loading {model_args.model_type} model from {model_args.base_model_name_or_path}")
@@ -67,48 +63,16 @@ def main():
     else:
         raise ValueError(f"Invalid model type: {model_args.model_type}")
 
-    # Add LoRA layers
-    if lora_args.lora_enable:
-        # Target linear layers
-        target_modules = []
-        modules_to_save = ["model.decoder.embed_accents"]
-        m_list = ["q_proj", "k_proj", "v_proj", "out_proj", "fc1", "fc2"]
-        for name, _ in model.named_modules():
-            if any(suffix in name for suffix in m_list):
-                target_modules.append(name)
-            elif re.search(
-                r"model.decoder.layers.\d+.(self_attn_layer_norm|encoder_attn_layer_norm|final_layer_norm).modulation.1",
-                name,
-            ):
-                modules_to_save.append(name)
-
-        lora_config = LoraConfig(
-            r=lora_args.lora_r,
-            lora_alpha=lora_args.lora_alpha,
-            lora_dropout=lora_args.lora_dropout,
-            bias=lora_args.lora_bias,
-            use_rslora=lora_args.use_rslora,
-            target_modules=target_modules,
-            modules_to_save=modules_to_save,
-            task_type=lora_args.task_type,
-            ensure_weight_tying=True,
-        )
-
-        model = get_peft_model(model, lora_config)
-        logger.info("Lora enabled")
-        model.print_trainable_parameters()
-    else:
-        # Freeze everthing except adaptive layer weights and embed_accents
-        for name, param in model.named_parameters():
-            if re.search(
-                r"model.decoder.layers.\d+.(self_attn_layer_norm|encoder_attn_layer_norm|final_layer_norm).modulation.1.weight",
-                name,
-            ):
-                param.requires_grad = True
-            elif name == "model.decoder.embed_accents.weight":
-                param.requires_grad = True
-            else:
-                param.requires_grad = False
+    # Freeze everthing except modulation weights, embed_accents and accent classifier
+    for name, param in model.named_parameters():
+        if "modulation.1.weight" in name:
+            param.requires_grad = True
+        elif "embed_accents" in name:
+            param.requires_grad = True
+        elif "accent_classifier" in name:
+            param.requires_grad = True
+        else:
+            param.requires_grad = False
 
     # Initialize datasets and data collator
     logger.info("Initializing datasets and data collator")

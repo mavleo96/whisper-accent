@@ -102,20 +102,20 @@ class WhisperAccentDecoder(WhisperDecoder):
 
     def forward(
         self,
-        input_ids=None,
-        attention_mask=None,
-        encoder_hidden_states=None,
-        past_key_values=None,
-        inputs_embeds=None,
-        position_ids=None,
-        accent_logits=None,
-        use_cache=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
-        cache_position=None,
+        input_ids: torch.LongTensor | None = None,
+        attention_mask: torch.LongTensor | None = None,
+        encoder_hidden_states: torch.FloatTensor | None = None,
+        past_key_values: EncoderDecoderCache | None = None,
+        inputs_embeds: torch.FloatTensor | None = None,
+        position_ids: torch.LongTensor | None = None,
+        accent_logits: torch.FloatTensor | None = None,
+        use_cache: bool | None = None,
+        output_attentions: bool | None = None,
+        output_hidden_states: bool | None = None,
+        return_dict: bool | None = None,
+        cache_position: torch.LongTensor | None = None,
         **kwargs,
-    ):
+    ) -> tuple[torch.Tensor] | BaseModelOutputWithPastAndCrossAttentions:
         output_attentions = (
             output_attentions if output_attentions is not None else self.config.output_attentions
         )
