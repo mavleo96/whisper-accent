@@ -32,6 +32,8 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
             compute_metrics=self.compute_metrics,
             callbacks=callbacks,
         )
+        # Note: this is updated to false since we subclass compute_loss method
+        self.model_accepts_loss_kwargs = False
 
         if compute_metrics == "all":
             compute_metrics = ["wer", "accent_accuracy"]
