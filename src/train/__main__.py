@@ -2,14 +2,17 @@ import logging
 import os
 import random
 
+import numpy as np
 import torch
 import torch.distributed as dist
+from sklearn.utils.class_weight import compute_class_weight
 from transformers import (
     HfArgumentParser,
     WhisperForConditionalGeneration,
     WhisperProcessor,
 )
 
+from ..model.configuration import ACCENTS
 from .dataset import DataCollatorSpeechSeq2SeqWithPadding, WhisperDataset
 from .train import (
     DatasetArguments,
@@ -91,6 +94,15 @@ def main():
         multilingual_model=model_args.is_multilingual,
         num_proc=dataset_args.num_proc,
     )
+
+    # Compute class weights
+    accent_ids = np.fromiter((ACCENTS[i] for i in train_dataset.raw_dataset["accent"]), dtype=int)
+    class_weights = compute_class_weight(
+        class_weight="balanced",
+        classes=np.unique(accent_ids),
+        y=accent_ids,
+    )
+    model.config.accent_class_weights = class_weights.tolist()
 
     # Initialize trainer
     logger.info("Initializing trainer")

@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 import torch.nn as nn
 from transformers import Seq2SeqTrainingArguments, WhisperForConditionalGeneration
 
-from src.model import (
+from ..model import (
     WhisperAccentConfig,
     WhisperAccentForConditionalGeneration,
 )

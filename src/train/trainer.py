@@ -1,8 +1,11 @@
+import json
+import os
+
 import evaluate
 import torch
 from transformers import Seq2SeqTrainer
 
-from src.constants import IGNORE_INDEX
+from ..constants import IGNORE_INDEX
 
 
 class WhisperAccentTrainer(Seq2SeqTrainer):
@@ -189,6 +192,14 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         labels = inputs["accent_labels"]
         preds = encoder_outputs.accent_logits.argmax(dim=-1)
         return preds, labels
+
+    def _save(self, output_dir, state_dict=None):
+        super()._save(output_dir, state_dict)
+
+        # Save normalizer.json
+        if self.processing_class.tokenizer.english_spelling_normalizer is not None:
+            with open(os.path.join(output_dir, "normalizer.json"), "w") as f:
+                json.dump(self.processing_class.tokenizer.english_spelling_normalizer, f)
 
 
 __all__ = ["WhisperAccentTrainer"]

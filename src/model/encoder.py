@@ -40,7 +40,11 @@ class AccentClassifier(nn.Module):
 
         loss = None
         if labels is not None:
-            loss_fct = CrossEntropyLoss()
+            class_weights = None
+            if self.config.accent_class_weights is not None:
+                class_weights = torch.tensor(self.config.accent_class_weights, device=logits.device)
+
+            loss_fct = CrossEntropyLoss(weight=class_weights)
             # move labels to correct device to enable PP
             labels = labels.to(logits.device)
             loss = loss_fct(logits.view(-1, self.config.num_accents), labels.view(-1))

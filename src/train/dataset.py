@@ -8,13 +8,13 @@ from datasets import Audio, Value, load_dataset
 from torch.utils.data import Dataset
 from transformers import WhisperProcessor
 
-from src.constants import (
-    ACCENTS,
+from ..constants import (
     IGNORE_INDEX,
     MAX_LENGTH,
     SAMPLING_RATE,
     WESTBROOK_DATASET_ACCENT_MAP,
 )
+from ..model.configuration import ACCENTS
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
