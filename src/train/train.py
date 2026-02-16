@@ -81,6 +81,7 @@ def model_init(base_model_name_or_path):
     # Update model config and generation config
     model.config.architectures = [model.__class__.__name__]
     model.config.model_type = "whisper_accent"
+    model.config.base_model = base_model_name_or_path
     model.generation_config = pretrained_model.generation_config
 
     # # Update bos token id; https://github.com/huggingface/transformers/issues/24342

@@ -10,6 +10,7 @@ class WhisperAccentConfig(WhisperConfig):
         self.accent_embed_dim = kwargs.pop("accent_embed_dim", kwargs.get("d_model", 384) // 2)
         self.num_accents = kwargs.pop("num_accents", len(ACCENTS))
         self.accent_proj_size = kwargs.pop("accent_proj_size", 256)
+        self.base_model = kwargs.pop("base_model", None)
         super().__init__(**kwargs)
 
 
