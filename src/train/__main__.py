@@ -54,7 +54,7 @@ def main():
     logger.info(f"Loading {model_args.model_type} model from {model_args.base_model_name_or_path}")
     if model_args.model_type == "whisper_accent":
         processor = WhisperProcessor.from_pretrained(model_args.base_model_name_or_path)
-        model = model_init(model_args.base_model_name_or_path)
+        model = model_init(model_args)
     elif model_args.model_type == "whisper":
         processor = WhisperProcessor.from_pretrained(model_args.base_model_name_or_path)
         model = WhisperForConditionalGeneration.from_pretrained(model_args.base_model_name_or_path)
