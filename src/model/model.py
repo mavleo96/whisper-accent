@@ -86,13 +86,6 @@ class WhisperAccentModel(WhisperModel):
                 accent_logits=encoder_outputs[4] if len(encoder_outputs) > 4 else None,
             )
 
-        # Note: In eval mode, we use the accent predictions from the encoder outputs
-        # While training, we use the ground truth accent labels
-        if not self.training:
-            accent_ids = encoder_outputs[-1].argmax(dim=-1)
-        else:
-            accent_ids = accent_labels
-
         # decoder outputs consists of (dec_features, past_key_values, dec_hidden, dec_attn)
         decoder_outputs = self.decoder(
             input_ids=decoder_input_ids,
@@ -101,7 +94,7 @@ class WhisperAccentModel(WhisperModel):
             past_key_values=past_key_values,
             inputs_embeds=decoder_inputs_embeds,
             position_ids=decoder_position_ids,
-            accent_ids=accent_ids,
+            accent_logits=encoder_outputs[-1],
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
