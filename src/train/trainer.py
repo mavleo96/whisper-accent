@@ -59,10 +59,10 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
                 "params": [
                     p
                     for n, p in model.named_parameters()
-                    if p.requires_grad and "modulation.1.weight" in n
+                    if p.requires_grad and not ("embed_accents" in n or "accent_classifier" in n)
                 ],
                 "lr": self.args.learning_rate,
-                "weight_decay": 0.0,  # No weight decay for modulation weights; they are zero-init
+                "weight_decay": 0.0,  # No weight decay for layer norm weights; they are zero-init
             },
             {
                 "params": [
@@ -100,44 +100,36 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         # Log both learning_rate (main) and embedding_learning_rate when using two param groups
         if self.optimizer is not None and not inside_eval_loop:
             lr_main = self.optimizer.param_groups[0]["lr"]
-            lr_embed = self.optimizer.param_groups[1]["lr"]
-            lr_accent_classifier = self.optimizer.param_groups[2]["lr"]
             logs["learning_rate"] = lr_main.item() if torch.is_tensor(lr_main) else lr_main
-            logs["embedding_learning_rate"] = (
-                lr_embed.item() if torch.is_tensor(lr_embed) else lr_embed
-            )
-            logs["accent_classifier_learning_rate"] = (
-                lr_accent_classifier.item()
-                if torch.is_tensor(lr_accent_classifier)
-                else lr_accent_classifier
-            )
+            if len(self.optimizer.param_groups) > 1:
+                lr_embed = self.optimizer.param_groups[1]["lr"]
+                lr_accent_classifier = self.optimizer.param_groups[2]["lr"]
+                logs["embedding_learning_rate"] = (
+                    lr_embed.item() if torch.is_tensor(lr_embed) else lr_embed
+                )
+                logs["accent_classifier_learning_rate"] = (
+                    lr_accent_classifier.item()
+                    if torch.is_tensor(lr_accent_classifier)
+                    else lr_accent_classifier
+                )
         super().log(logs, start_time)
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         outputs = model(**inputs)
         if self.accelerator.unwrap_model(model).config.model_type == "whisper":
-            return (outputs.loss, outputs) if return_outputs else outputs.loss
+            loss = outputs.loss
+        else:
+            # Transcription Loss
+            transcription_loss = outputs.loss
+            accent_loss = outputs.accent_loss
 
-        # Transcription Loss
-        transcription_loss = outputs.loss
-        accent_loss = outputs.accent_loss
-
-        # Compute total loss
-        loss = transcription_loss + self.args.lambda_accent * accent_loss
+            # Compute total loss
+            loss = transcription_loss + self.args.lambda_accent * accent_loss
 
         if self.args.average_tokens_across_devices and num_items_in_batch is not None:
             loss *= self.accelerator.num_processes if self.args.n_gpu <= 1 else self.args.n_gpu
 
         return (loss, outputs) if return_outputs else loss
-
-    # def compute_diversity_loss(self):
-    #     # Use unwrapped model so attribute access works under DDP (self.model may be wrapped)
-    #     model = self.accelerator.unwrap_model(self.model)
-    #     embedding_layer = model.get_input_embeddings()
-    #     accent_embeddings = embedding_layer.token_adapter.trainable_tokens_delta["default"]
-
-    #     # Compute diversity loss
-    #     return repulsive_loss(accent_embeddings, temperature=0.1)
 
     def compute_metrics(self, eval_pred, compute_result=True):
         predictions = eval_pred.predictions

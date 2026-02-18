@@ -116,6 +116,7 @@ class WhisperDataset(Dataset):
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     processor: WhisperProcessor
+    return_accent_labels: bool = False
 
     def __call__(self, features):
         batch = {}
@@ -149,7 +150,8 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         #     batch["attention_mask"] = batch["attention_mask"][:, 1:]
 
         # Add accent ids
-        batch["accent_labels"] = torch.tensor([feature["accent_id"] for feature in features])
+        if self.return_accent_labels:
+            batch["accent_labels"] = torch.tensor([feature["accent_id"] for feature in features])
 
         return batch
 

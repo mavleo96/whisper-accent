@@ -15,8 +15,6 @@ class ModelArguments:
     model_type: str = field(metadata={"choices": ["whisper_accent", "whisper"]})
     base_model_name_or_path: str
     is_multilingual: bool
-    dropout: float = 0.0
-    activation_dropout: float = 0.0
 
 
 @dataclass
@@ -67,12 +65,8 @@ def model_init(model_args):
     )
     state_dict = pretrained_model.state_dict()
 
-    # Load whisper accent config and update dropouts
-    config = WhisperAccentConfig.from_pretrained(model_args.base_model_name_or_path)
-    config.dropout = model_args.dropout
-    config.activation_dropout = model_args.activation_dropout
-
     # Load whisper weights into whisper_accent model
+    config = WhisperAccentConfig.from_pretrained(model_args.base_model_name_or_path)
     model = WhisperAccentForConditionalGeneration(config)
     missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
 

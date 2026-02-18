@@ -25,8 +25,6 @@ accelerate launch \
     --model_type $MODEL_TYPE \
     --base_model_name_or_path $BASE_MODEL_NAME \
     --is_multilingual $IS_MULTILINGUAL \
-    --dropout 0.1 \
-    --activation_dropout 0.1 \
     --train_data_path $DATASET_NAME \
     --eval_data_path $DATASET_NAME \
     --output_dir $OUTPUT_DIR \

@@ -55,6 +55,18 @@ def main():
     if model_args.model_type == "whisper_accent":
         processor = WhisperProcessor.from_pretrained(model_args.base_model_name_or_path)
         model = model_init(model_args)
+
+        # Freeze everthing except modulation weights, embed_accents and accent classifier
+        for name, param in model.named_parameters():
+            if "modulation.1.weight" in name:
+                param.requires_grad = True
+            elif "embed_accents" in name:
+                param.requires_grad = True
+            elif "accent_classifier" in name:
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
+
     elif model_args.model_type == "whisper":
         processor = WhisperProcessor.from_pretrained(model_args.base_model_name_or_path)
         model = WhisperForConditionalGeneration.from_pretrained(model_args.base_model_name_or_path)
@@ -63,23 +75,23 @@ def main():
             model.generation_config.language = "en"
             model.generation_config.task = "transcribe"
         model.generation_config.forced_decoder_ids = None
+
+        # Freeze everthing except decoder layer norms
+        for name, param in model.named_parameters():
+            layer_norm = ["encoder_attn_layer_norm", "self_attn_layer_norm", "final_layer_norm"]
+            if "decoder" in name and any(ln in name for ln in layer_norm):
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
+
     else:
         raise ValueError(f"Invalid model type: {model_args.model_type}")
 
-    # Freeze everthing except modulation weights, embed_accents and accent classifier
-    for name, param in model.named_parameters():
-        if "modulation.1.weight" in name:
-            param.requires_grad = True
-        elif "embed_accents" in name:
-            param.requires_grad = True
-        elif "accent_classifier" in name:
-            param.requires_grad = True
-        else:
-            param.requires_grad = False
-
     # Initialize datasets and data collator
     logger.info("Initializing datasets and data collator")
-    collator = DataCollatorSpeechSeq2SeqWithPadding(processor)
+    collator = DataCollatorSpeechSeq2SeqWithPadding(
+        processor, return_accent_labels=model_args.model_type == "whisper_accent"
+    )
     train_dataset = WhisperDataset(
         dataset_args.train_data_path,
         "train",
@@ -96,13 +108,16 @@ def main():
     )
 
     # Compute class weights
-    accent_ids = np.fromiter((ACCENTS[i] for i in train_dataset.raw_dataset["accent"]), dtype=int)
-    class_weights = compute_class_weight(
-        class_weight="balanced",
-        classes=np.unique(accent_ids),
-        y=accent_ids,
-    )
-    model.config.accent_class_weights = class_weights.tolist()
+    if model_args.model_type == "whisper_accent":
+        accent_ids = np.fromiter(
+            (ACCENTS[i] for i in train_dataset.raw_dataset["accent"]), dtype=int
+        )
+        class_weights = compute_class_weight(
+            class_weight="balanced",
+            classes=np.unique(accent_ids),
+            y=accent_ids,
+        )
+        model.config.accent_class_weights = class_weights.tolist()
 
     # Initialize trainer
     logger.info("Initializing trainer")
