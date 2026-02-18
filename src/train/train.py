@@ -7,6 +7,7 @@ from ..model import (
     WhisperAccentConfig,
     WhisperAccentForConditionalGeneration,
 )
+from ..model.module import AdaptiveLayerNorm
 
 
 @dataclass
@@ -40,16 +41,21 @@ class WhisperAccentTrainingArguments(Seq2SeqTrainingArguments):
         self.batch_eval_metrics = True
 
 
-def init_adaln_weights(module, state_dict, name):
-    # Initialize modulation weights to 0
-    nn.init.zeros_(module.modulation[-1].weight)
+def init_adaln_weights(model, state_dict):
+    for name, module in model.named_modules():
+        if isinstance(module, AdaptiveLayerNorm):
+            # Initialize modulation linear layer weights to 0
+            nn.init.zeros_(module.modulation[-1].weight)
 
-    # Copy old gamma and beta as bias in the modulation layer
-    weight = state_dict[f"{name}.weight"]
-    module.modulation[-1].bias[: module.hidden_dim].data.copy_(weight)
-    if f"{name}.bias" in state_dict:
-        bias = state_dict[f"{name}.bias"]
-        module.modulation[-1].bias[module.hidden_dim :].data.copy_(bias)
+            # Copy old gamma and beta as bias in the modulation layer
+            if f"{name}.weight" not in state_dict:
+                raise ValueError(f"Weight {name}.weight not found in state dict")
+
+            weight = state_dict[f"{name}.weight"]
+            module.modulation[-1].bias[: module.hidden_dim].data.copy_(weight)
+            if f"{name}.bias" in state_dict:
+                bias = state_dict[f"{name}.bias"]
+                module.modulation[-1].bias[module.hidden_dim :].data.copy_(bias)
 
 
 def model_init(base_model_name_or_path):
@@ -61,21 +67,9 @@ def model_init(base_model_name_or_path):
     config = WhisperAccentConfig.from_pretrained(base_model_name_or_path)
     model = WhisperAccentForConditionalGeneration(config)
     missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
-    for layer_idx, layer in enumerate(model.get_decoder().layers):
-        init_adaln_weights(
-            layer.self_attn_layer_norm,
-            state_dict,
-            f"model.decoder.layers.{layer_idx}.self_attn_layer_norm",
-        )
-        init_adaln_weights(
-            layer.encoder_attn_layer_norm,
-            state_dict,
-            f"model.decoder.layers.{layer_idx}.encoder_attn_layer_norm",
-        )
-        init_adaln_weights(
-            layer.final_layer_norm, state_dict, f"model.decoder.layers.{layer_idx}.final_layer_norm"
-        )
 
+    # Initialize adaptive layer and accent embeddings
+    init_adaln_weights(model, state_dict)
     nn.init.normal_(model.get_accent_embeddings().weight, mean=0.0, std=0.02)
 
     # Update model config and generation config

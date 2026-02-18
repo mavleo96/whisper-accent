@@ -6,8 +6,8 @@ from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttenti
 from transformers.models.whisper.modeling_whisper import WhisperDecoder, WhisperDecoderLayer
 from transformers.utils import logging
 
-from .adaln import AdaptiveLayerNorm
 from .configuration import WhisperAccentConfig
+from .module import AdaptiveLayerNorm
 
 logger = logging.get_logger(__name__)
 
@@ -185,7 +185,6 @@ class WhisperAccentDecoder(WhisperDecoder):
         # embed accent ids
         if accent_ids is not None:
             accent_embeds = self.embed_accents(accent_ids)
-            accent_embeds = accent_embeds.unsqueeze(1)
         else:
             accent_embeds = None
 
