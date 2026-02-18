@@ -87,6 +87,14 @@ def main():
     else:
         raise ValueError(f"Invalid model type: {model_args.model_type}")
 
+    # Print number of parameters
+    n_params = sum(p.numel() for p in model.parameters())
+    n_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    n_non_trainable_params = sum(p.numel() for p in model.parameters() if not p.requires_grad)
+    logger.info(f"Number of parameters: {n_params}")
+    logger.info(f"Number of trainable parameters: {n_trainable_params}")
+    logger.info(f"Number of non-trainable parameters: {n_non_trainable_params}")
+
     # Initialize datasets and data collator
     logger.info("Initializing datasets and data collator")
     collator = DataCollatorSpeechSeq2SeqWithPadding(
