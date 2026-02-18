@@ -40,7 +40,7 @@ accelerate launch \
     --weight_decay 0.01 \
     --lr_scheduler_type linear \
     --warmup_steps 0.05 \
-    --num_train_epochs 2 \
+    --max_steps 4000 \
     --max_grad_norm 5.0 \
     --eval_strategy steps \
     --eval_steps 200 \
