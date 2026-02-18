@@ -67,4 +67,73 @@ class AdaptiveLayerNorm(nn.Module):
         return gamma * normalized + (beta if beta is not None else 0)
 
 
-__all__ = ["AdaptiveLayerNorm"]
+class MultiHeadAttentionPooling(nn.Module):
+    def __init__(
+        self,
+        hidden_dim: int,
+        num_heads: int,
+        num_seeds: int = 1,
+        dropout: float = 0.0,
+        bias: bool = True,
+        device=None,
+        dtype=None,
+    ):
+        super().__init__()
+
+        if hidden_dim % num_heads != 0:
+            raise ValueError(
+                f"hidden_dim ({hidden_dim}) must be divisible by num_heads ({num_heads})"
+            )
+
+        self.hidden_dim = hidden_dim
+        self.num_heads = num_heads
+        self.num_seeds = num_seeds
+        self.dropout = dropout
+
+        # Learnable pooling queries
+        self.seeds = nn.Parameter(torch.empty(num_seeds, hidden_dim, device=device, dtype=dtype))
+
+        # Multi-head attention layer
+        self.mha = nn.MultiheadAttention(
+            embed_dim=hidden_dim,
+            num_heads=num_heads,
+            dropout=dropout,
+            bias=bias,
+            batch_first=True,
+            device=device,
+            dtype=dtype,
+        )
+
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        nn.init.normal_(self.seeds, mean=0.0, std=0.02)
+        self.mha._reset_parameters()
+
+    def forward(
+        self,
+        input: torch.Tensor,
+        key_padding_mask: torch.BoolTensor | None = None,
+    ) -> torch.Tensor:
+        B, _, _ = input.shape
+
+        # Learnable queries broadcast across batch
+        query = self.seeds.unsqueeze(0).expand(B, -1, -1)  # [B, S, D]
+
+        # Pooling input feature over queries
+        out, _ = self.mha(
+            query=query,
+            key=input,
+            value=input,
+            key_padding_mask=key_padding_mask,
+            need_weights=False,  # enables optimized SDPA backend
+            is_causal=False,
+        )  # -> [B, num_seeds, D]
+
+        if self.num_seeds == 1:
+            out = out.squeeze(1)
+
+        return out
+
+
+__all__ = ["AdaptiveLayerNorm", "MultiHeadAttentionPooling"]

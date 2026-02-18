@@ -6,6 +6,7 @@ from transformers.models.whisper.modeling_whisper import WhisperEncoder
 
 from .configuration import WhisperAccentConfig
 from .modelling_outputs import WhisperAccentEncoderOutput
+from .module import MultiHeadAttentionPooling
 
 
 class AccentClassifier(nn.Module):
@@ -13,10 +14,21 @@ class AccentClassifier(nn.Module):
         super().__init__()
         self.config = config
 
+        # Weights to combine hidden states from different layers
         num_layers = config.num_hidden_layers + 1  # transformer layers + input embeddings
         self.layer_weights = nn.Parameter(torch.ones(num_layers) / num_layers)
 
+        # Project hidden states to accent projection size
         self.projector = nn.Linear(config.d_model, config.accent_proj_size)
+
+        # Attention pooling over time
+        self.num_heads = config.accent_attention_heads
+        self.mhap = MultiHeadAttentionPooling(
+            hidden_dim=config.accent_proj_size,
+            num_heads=config.accent_attention_heads,
+        )
+
+        # Classifier
         self.classifier = nn.Linear(config.accent_proj_size, config.num_accents)
 
     def forward(
@@ -31,9 +43,9 @@ class AccentClassifier(nn.Module):
         norm_weights = F.softmax(self.layer_weights, dim=-1)
         hidden_states = (hidden_states * norm_weights.view(-1, 1, 1)).sum(dim=1)
 
-        # Project hidden states and mean pool them
+        # Project hidden states and pool them
         hidden_states = self.projector(hidden_states)
-        pooled_output = hidden_states.mean(dim=1)
+        pooled_output = self.mhap(hidden_states)
 
         # Classify the accent
         logits = self.classifier(pooled_output)

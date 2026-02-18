@@ -37,7 +37,11 @@ class WhisperAccentConfig(WhisperConfig):
         self.accent_to_id = kwargs.pop("accent_to_id", ACCENTS)
 
         self.accent_embed_dim = kwargs.pop("accent_embed_dim", kwargs.get("d_model", 384) // 2)
+
         self.accent_proj_size = kwargs.pop("accent_proj_size", 256)
+        self.accent_attention_heads = kwargs.pop("accent_attention_heads", 8)
+        self.accent_class_weights = kwargs.pop("accent_class_weights", None)
+
         super().__init__(**kwargs)
 
 

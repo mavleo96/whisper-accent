@@ -25,6 +25,8 @@ accelerate launch \
     --model_type $MODEL_TYPE \
     --base_model_name_or_path $BASE_MODEL_NAME \
     --is_multilingual $IS_MULTILINGUAL \
+    --dropout 0.1 \
+    --activation_dropout 0.1 \
     --train_data_path $DATASET_NAME \
     --eval_data_path $DATASET_NAME \
     --output_dir $OUTPUT_DIR \
@@ -34,14 +36,14 @@ accelerate launch \
     --gradient_checkpointing True \
     --optim adamw_torch \
     --learning_rate 5e-5 \
-    --embedding_learning_rate 1e-4 \
-    --accent_classifier_learning_rate 5e-5 \
+    --embedding_learning_rate 5e-4 \
+    --accent_classifier_learning_rate 1e-3 \
     --lambda_accent 1.0 \
     --weight_decay 0.01 \
     --lr_scheduler_type linear \
     --warmup_steps 0.05 \
-    --max_steps 2000 \
-    --max_grad_norm 1.0 \
+    --num_train_epochs 2 \
+    --max_grad_norm 5.0 \
     --eval_strategy steps \
     --eval_steps 200 \
     --eval_on_start True \

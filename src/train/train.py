@@ -15,6 +15,8 @@ class ModelArguments:
     model_type: str = field(metadata={"choices": ["whisper_accent", "whisper"]})
     base_model_name_or_path: str
     is_multilingual: bool
+    dropout: float = 0.0
+    activation_dropout: float = 0.0
 
 
 @dataclass
@@ -58,13 +60,19 @@ def init_adaln_weights(model, state_dict):
                 module.modulation[-1].bias[module.hidden_dim :].data.copy_(bias)
 
 
-def model_init(base_model_name_or_path):
+def model_init(model_args):
     # Load pretrained whisper model
-    pretrained_model = WhisperForConditionalGeneration.from_pretrained(base_model_name_or_path)
+    pretrained_model = WhisperForConditionalGeneration.from_pretrained(
+        model_args.base_model_name_or_path
+    )
     state_dict = pretrained_model.state_dict()
 
+    # Load whisper accent config and update dropouts
+    config = WhisperAccentConfig.from_pretrained(model_args.base_model_name_or_path)
+    config.dropout = model_args.dropout
+    config.activation_dropout = model_args.activation_dropout
+
     # Load whisper weights into whisper_accent model
-    config = WhisperAccentConfig.from_pretrained(base_model_name_or_path)
     model = WhisperAccentForConditionalGeneration(config)
     missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
 
@@ -75,7 +83,7 @@ def model_init(base_model_name_or_path):
     # Update model config and generation config
     model.config.architectures = [model.__class__.__name__]
     model.config.model_type = "whisper_accent"
-    model.config.base_model = base_model_name_or_path
+    model.config.base_model = model_args.base_model_name_or_path
     model.generation_config = pretrained_model.generation_config
 
     # # Update bos token id; https://github.com/huggingface/transformers/issues/24342
