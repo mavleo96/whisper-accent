@@ -25,7 +25,9 @@ pip install -U torch \
  scipy \
  numpy \
  pandas \
+ umap-learn \
  matplotlib \
- seaborn
+ seaborn \
+ adjustText
 
 conda env export --no-builds | grep -v "^prefix: " > env.yml
