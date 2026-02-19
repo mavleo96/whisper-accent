@@ -2,23 +2,23 @@ import logging
 import os
 import random
 
+import numpy as np
 import torch
 import torch.distributed as dist
-from peft import LoraConfig, get_peft_model
+from sklearn.utils.class_weight import compute_class_weight
 from transformers import (
     HfArgumentParser,
     WhisperForConditionalGeneration,
     WhisperProcessor,
 )
 
+from ..model.configuration import ACCENTS
 from .dataset import DataCollatorSpeechSeq2SeqWithPadding, WhisperDataset
 from .train import (
     DatasetArguments,
-    LoraArguments,
     ModelArguments,
     WhisperAccentTrainingArguments,
     model_init,
-    processor_init,
 )
 from .trainer import WhisperAccentTrainer
 
@@ -46,16 +46,27 @@ def main():
             ModelArguments,
             DatasetArguments,
             WhisperAccentTrainingArguments,
-            LoraArguments,
         ]
     )
-    model_args, dataset_args, training_args, lora_args = parser.parse_args_into_dataclasses()
+    model_args, dataset_args, training_args = parser.parse_args_into_dataclasses()
 
     # Load model and processor; whisper / whisper_accent models are supported
     logger.info(f"Loading {model_args.model_type} model from {model_args.base_model_name_or_path}")
     if model_args.model_type == "whisper_accent":
-        processor = processor_init(model_args.base_model_name_or_path)
-        model = model_init(model_args.base_model_name_or_path, processor)
+        processor = WhisperProcessor.from_pretrained(model_args.base_model_name_or_path)
+        model = model_init(model_args)
+
+        # Freeze everthing except modulation weights, embed_accents and accent classifier
+        for name, param in model.named_parameters():
+            if "modulation.1.weight" in name:
+                param.requires_grad = True
+            elif "embed_accents" in name:
+                param.requires_grad = True
+            elif "accent_classifier" in name:
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
+
     elif model_args.model_type == "whisper":
         processor = WhisperProcessor.from_pretrained(model_args.base_model_name_or_path)
         model = WhisperForConditionalGeneration.from_pretrained(model_args.base_model_name_or_path)
@@ -64,44 +75,31 @@ def main():
             model.generation_config.language = "en"
             model.generation_config.task = "transcribe"
         model.generation_config.forced_decoder_ids = None
+
+        # Freeze everthing except decoder layer norms
+        for name, param in model.named_parameters():
+            layer_norm = ["encoder_attn_layer_norm", "self_attn_layer_norm", "final_layer_norm"]
+            if "decoder" in name and any(ln in name for ln in layer_norm):
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
+
     else:
         raise ValueError(f"Invalid model type: {model_args.model_type}")
 
-    # Add LoRA layers
-    # Note: Non-LoRA training is not implemented yet
-    if lora_args.lora_enable:
-        # Target linear layers
-        target_modules = []
-        m_list = ["q_proj", "k_proj", "v_proj", "out_proj", "fc1", "fc2"]
-        for name, _ in model.named_modules():
-            if any(suffix in name for suffix in m_list):
-                target_modules.append(name)
-
-        lora_config = LoraConfig(
-            r=lora_args.lora_r,
-            lora_alpha=lora_args.lora_alpha,
-            lora_dropout=lora_args.lora_dropout,
-            bias=lora_args.lora_bias,
-            use_rslora=lora_args.use_rslora,
-            target_modules=target_modules,
-            task_type=lora_args.task_type,
-            ensure_weight_tying=True,
-        )
-
-        # Trainable token indices for new accent tokens
-        if model_args.model_type == "whisper_accent":
-            accent_token_indices = sorted(list(model.generation_config.accent_to_id.values()))
-            lora_config.trainable_token_indices = accent_token_indices
-
-        model = get_peft_model(model, lora_config)
-        logger.info("Lora enabled")
-        model.print_trainable_parameters()
-    else:
-        raise NotImplementedError("Non-LoRA training is not implemented yet")
+    # Print number of parameters
+    n_params = sum(p.numel() for p in model.parameters())
+    n_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    n_non_trainable_params = sum(p.numel() for p in model.parameters() if not p.requires_grad)
+    logger.info(f"Number of parameters: {n_params}")
+    logger.info(f"Number of trainable parameters: {n_trainable_params}")
+    logger.info(f"Number of non-trainable parameters: {n_non_trainable_params}")
 
     # Initialize datasets and data collator
     logger.info("Initializing datasets and data collator")
-    collator = DataCollatorSpeechSeq2SeqWithPadding(processor)
+    collator = DataCollatorSpeechSeq2SeqWithPadding(
+        processor, return_accent_labels=model_args.model_type == "whisper_accent"
+    )
     train_dataset = WhisperDataset(
         dataset_args.train_data_path,
         "train",
@@ -116,6 +114,18 @@ def main():
         multilingual_model=model_args.is_multilingual,
         num_proc=dataset_args.num_proc,
     )
+
+    # Compute class weights
+    if model_args.model_type == "whisper_accent":
+        accent_ids = np.fromiter(
+            (ACCENTS[i] for i in train_dataset.raw_dataset["accent"]), dtype=int
+        )
+        class_weights = compute_class_weight(
+            class_weight="balanced",
+            classes=np.unique(accent_ids),
+            y=accent_ids,
+        )
+        model.config.accent_class_weights = class_weights.tolist()
 
     # Initialize trainer
     logger.info("Initializing trainer")

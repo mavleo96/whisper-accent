@@ -32,23 +32,16 @@ accelerate launch \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 4 \
     --gradient_checkpointing True \
-    --lambda_accent_loss 0.0 \
-    --lambda_diversity_loss 0.0 \
     --optim adamw_torch \
-    --learning_rate 1e-5 \
-    --embedding_learning_rate 5e-5 \
+    --learning_rate 5e-5 \
+    --embedding_learning_rate 5e-4 \
+    --accent_classifier_learning_rate 1e-3 \
+    --lambda_accent 1.0 \
     --weight_decay 0.01 \
     --lr_scheduler_type linear \
     --warmup_steps 0.05 \
-    --max_steps 2000 \
-    --max_grad_norm 1.0 \
-    --lora_enable True \
-    --lora_r 16 \
-    --lora_alpha 32 \
-    --lora_dropout 0.15 \
-    --lora_bias "none" \
-    --use_rslora True \
-    --task_type "SEQ_2_SEQ_LM" \
+    --max_steps 4000 \
+    --max_grad_norm 5.0 \
     --eval_strategy steps \
     --eval_steps 200 \
     --eval_on_start True \

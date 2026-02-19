@@ -12,7 +12,6 @@ pip install -U torch \
  huggingface-hub \
  transformers \
  accelerate \
- peft \
  datasets \
  evaluate \
  jiwer \

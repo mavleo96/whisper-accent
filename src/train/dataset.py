@@ -8,13 +8,13 @@ from datasets import Audio, Value, load_dataset
 from torch.utils.data import Dataset
 from transformers import WhisperProcessor
 
-from src.constants import (
+from ..constants import (
     IGNORE_INDEX,
     MAX_LENGTH,
     SAMPLING_RATE,
     WESTBROOK_DATASET_ACCENT_MAP,
 )
-from src.model.tokenization import ACCENTS, WhisperAccentTokenizer
+from ..model.configuration import ACCENTS
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -102,15 +102,13 @@ class WhisperDataset(Dataset):
             "labels": labels,
             "input_features": input_features,
             "attention_mask": attention_mask,
+            "accent_id": ACCENTS[item["accent"]],
         }
 
     def get_prefix_tokens(self, item):
         prefix_tokens = []
         if self.multilingual_model:
             prefix_tokens.extend([self.en_lang_token_id, self.transcribe_token_id])
-        if isinstance(self.tokenizer, WhisperAccentTokenizer):
-            accent_token_id = self.tokenizer.convert_tokens_to_ids(ACCENTS[item["accent"]])
-            prefix_tokens.append(accent_token_id)
         prefix_tokens.append(self.no_timestamps_token_id)
         return prefix_tokens
 
@@ -118,6 +116,7 @@ class WhisperDataset(Dataset):
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     processor: WhisperProcessor
+    return_accent_labels: bool = False
 
     def __call__(self, features):
         batch = {}
@@ -149,6 +148,10 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         # if batch["labels"].shape[0] > 0 and check_bos_token:
         #     batch["labels"] = batch["labels"][:, 1:]
         #     batch["attention_mask"] = batch["attention_mask"][:, 1:]
+
+        # Add accent ids
+        if self.return_accent_labels:
+            batch["accent_labels"] = torch.tensor([feature["accent_id"] for feature in features])
 
         return batch
 
