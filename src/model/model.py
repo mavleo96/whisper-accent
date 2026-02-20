@@ -214,6 +214,18 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
             accent_logits=outputs.accent_logits,
         )
 
+    def predict_accent(
+        self, input_features: torch.FloatTensor, attention_mask: torch.LongTensor
+    ) -> torch.LongTensor:
+        encoder_outputs = self.model.get_encoder()(
+            input_features, attention_mask=attention_mask, return_dict=True
+        )
+
+        accent_logits = encoder_outputs.accent_logits
+        accent_id_preds = accent_logits.argmax(dim=-1)
+
+        return accent_id_preds
+
 
 __all__ = [
     "WhisperAccentModel",

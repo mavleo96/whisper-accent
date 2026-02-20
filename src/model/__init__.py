@@ -10,10 +10,16 @@ def register_whisper_accent():
         AutoConfig,
         AutoModel,
         AutoModelForSpeechSeq2Seq,
+        AutoProcessor,
+        AutoTokenizer,
+        WhisperProcessor,
+        WhisperTokenizer,
     )
 
     AutoConfig.register("whisper_accent", WhisperAccentConfig)
     AutoModel.register(WhisperAccentConfig, WhisperAccentModel)
+    AutoProcessor.register(WhisperAccentConfig, WhisperProcessor)
+    AutoTokenizer.register(WhisperAccentConfig, WhisperTokenizer)
     AutoModelForSpeechSeq2Seq.register(WhisperAccentConfig, WhisperAccentForConditionalGeneration)
 
 

@@ -3,20 +3,16 @@
 export DATASET_NAME="westbrook/English_Accent_DataSet"
 
 MODELS=(
-    "openai/whisper-tiny"
-    "openai/whisper-tiny.en"
-    "openai/whisper-base"
-    "openai/whisper-base.en"
-    "openai/whisper-small"
     "openai/whisper-small.en"
-    "openai/whisper-medium"
+    "mavleo96/whisper-accent-small.en"
     "openai/whisper-medium.en"
+    # "mavleo96/whisper-accent-medium.en"
     "openai/whisper-large-v3"
     "openai/whisper-large-v3-turbo"
 )
 
 for model in "${MODELS[@]}"; do
-    name="${model#openai/}"
+    name="${model//\//-}"
     output="results/${name}.json"
     echo "Evaluating $model -> $output"
     CUDA_VISIBLE_DEVICES=0 python scripts/eval.py \
