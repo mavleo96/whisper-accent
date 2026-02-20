@@ -42,12 +42,16 @@ class WhisperAccentTrainingArguments(Seq2SeqTrainingArguments):
 
 
 def init_adaln_weights(model, state_dict):
+    """
+    Initialize AdaptiveLayerNorm: zero modulation weights, copy pretrained LayerNorm gamma/beta
+    into modulation bias.
+    """
     for name, module in model.named_modules():
         if isinstance(module, AdaptiveLayerNorm):
             # Initialize modulation linear layer weights to 0
             nn.init.zeros_(module.modulation[-1].weight)
-
-            # Copy old gamma and beta as bias in the modulation layer
+            # Copy pretrained LayerNorm gamma/beta into modulation bias so initial behavior
+            # matches pretrained whisper model
             if f"{name}.weight" not in state_dict:
                 raise ValueError(f"Weight {name}.weight not found in state dict")
 

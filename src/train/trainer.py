@@ -54,6 +54,7 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
 
     def create_optimizer(self):
         model = self.model
+        # Three param groups: base model, accent embeddings, accent classifier (separate LRs).
         optimizer_grouped_parameters = [
             {
                 "params": [
@@ -119,11 +120,8 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         if self.accelerator.unwrap_model(model).config.model_type == "whisper":
             loss = outputs.loss
         else:
-            # Transcription Loss
             transcription_loss = outputs.loss
             accent_loss = outputs.accent_loss
-
-            # Compute total loss
             loss = transcription_loss + self.args.lambda_accent * accent_loss
 
         if self.args.average_tokens_across_devices and num_items_in_batch is not None:

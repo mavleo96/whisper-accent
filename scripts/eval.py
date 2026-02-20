@@ -28,7 +28,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 register_whisper_accent()
 
-# id -> label (ACCENTS is label -> id); used for per-accent dict keys and logging
+# id -> label (inverse of ACCENTS); used for per-accent result keys and logging.
 ACCENT_MAP = {v: k for k, v in ACCENTS.items()}
 
 
@@ -125,7 +125,7 @@ def run_evaluation(model, processor, dataloader, device, dtype):
     if model.config.model_type == "whisper":
         return eval_data
 
-    # whisper_accent only: second pass for accent head
+    # whisper_accent: second pass to get accent predictions from encoder.
     all_accent_preds = []
     for batch in tqdm(dataloader, desc="Predicting Accent"):
         feats = batch["input_features"].to(device).to(dtype)

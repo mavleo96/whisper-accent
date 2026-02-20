@@ -3,6 +3,7 @@ SAMPLING_RATE = 16000
 MAX_LENGTH = 448
 GENERATION_MAX_LENGTH = 255
 
+# Westbrook dataset integer accent codes -> our ACCENTS label names.
 WESTBROOK_DATASET_ACCENT_MAP = {
     0: "dutch",
     1: "german",

@@ -5,7 +5,7 @@ from adjustText import adjust_text
 
 
 def visualize_embedding_similarity(embeddings, labels, title, ax):
-    # Cosine similarity
+    """Plot heatmap of cosine similarity between embedding rows."""
     normalized = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
     cosine_sim = normalized @ normalized.T
 
@@ -27,7 +27,7 @@ def visualize_embedding_similarity(embeddings, labels, title, ax):
 
 
 def visualize_umap_embeddings(embeddings, labels, title, ax):
-    # Fit UMAP model and get 2D embeddings
+    """Reduce embeddings to 2D with UMAP (cosine) and scatter-plot with text labels."""
     reducer = umap.UMAP(
         n_neighbors=5,
         n_components=2,

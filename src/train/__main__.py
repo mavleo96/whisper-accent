@@ -56,7 +56,7 @@ def main():
         processor = WhisperProcessor.from_pretrained(model_args.base_model_name_or_path)
         model = model_init(model_args)
 
-        # Freeze everthing except modulation weights, embed_accents and accent classifier
+        # Train only ADaLN modulation, accent embeddings, and accent classifier; freeze rest.
         for name, param in model.named_parameters():
             if "modulation.1.weight" in name:
                 param.requires_grad = True
@@ -76,7 +76,7 @@ def main():
             model.generation_config.task = "transcribe"
         model.generation_config.forced_decoder_ids = None
 
-        # Freeze everthing except decoder layer norms
+        # Whisper baseline: train only decoder layer norms.
         for name, param in model.named_parameters():
             layer_norm = ["encoder_attn_layer_norm", "self_attn_layer_norm", "final_layer_norm"]
             if "decoder" in name and any(ln in name for ln in layer_norm):

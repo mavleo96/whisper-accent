@@ -21,6 +21,11 @@ from .modelling_outputs import (
 
 
 class WhisperAccentModel(WhisperModel):
+    """
+    Whisper encoder-decoder with accent classifier on encoder and decoder conditioned on
+    accent embeddings.
+    """
+
     config_class = WhisperAccentConfig
 
     def __init__(self, config: WhisperConfig):

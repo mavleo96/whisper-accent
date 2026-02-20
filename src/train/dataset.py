@@ -22,6 +22,11 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 class WhisperDataset(Dataset):
+    """
+    Loads audio + text + accent from a HuggingFace dataset;
+    returns features, labels, and accent_id.
+    """
+
     def __init__(self, data_path, split, processor, multilingual_model=False, num_proc=16):
         super().__init__()
 
@@ -75,7 +80,6 @@ class WhisperDataset(Dataset):
         input_features = features["input_features"][0]
         attention_mask = features["attention_mask"][0]
 
-        # Convert Edacc dataset from uppercase to sentence case
         def sentence_case(text):
             if not text:
                 return text
@@ -84,9 +88,8 @@ class WhisperDataset(Dataset):
             return text
 
         if item["audio_id"].startswith("edacc_"):
-            text = sentence_case(text)
+            text = sentence_case(text)  # Edacc samples are uppercase; normalize to sentence case.
 
-        # Tokenize text labels
         prefix_tokens = self.get_prefix_tokens(item)
         tokens = self.tokenizer(
             text,
@@ -115,6 +118,11 @@ class WhisperDataset(Dataset):
 
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
+    """
+    Pads input_features, attention_mask, and labels;
+    optionally adds accent_labels for whisper_accent.
+    """
+
     processor: WhisperProcessor
     return_accent_labels: bool = False
 

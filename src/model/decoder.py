@@ -13,6 +13,8 @@ logger = logging.get_logger(__name__)
 
 
 class WhisperAccentDecoderLayer(WhisperDecoderLayer):
+    """Decoder layer with AdaptiveLayerNorm conditioned on accent embeddings."""
+
     def __init__(self, config: WhisperAccentConfig, layer_idx: int | None = None):
         super().__init__(config, layer_idx)
         self.accent_embed_dim = config.accent_embed_dim
@@ -84,6 +86,8 @@ class WhisperAccentDecoderLayer(WhisperDecoderLayer):
 
 
 class WhisperAccentDecoder(WhisperDecoder):
+    """Whisper decoder with accent embeddings and AdaptiveLayerNorm in each layer."""
+
     def __init__(self, config: WhisperAccentConfig):
         super().__init__(config)
 
@@ -93,7 +97,6 @@ class WhisperAccentDecoder(WhisperDecoder):
                 for layer_idx in range(config.decoder_layers)
             ]
         )
-        # Add accent embedding layer
         self.embed_accents = nn.Embedding(config.num_accents, config.accent_embed_dim)
 
         # Initialize weights and apply final processing

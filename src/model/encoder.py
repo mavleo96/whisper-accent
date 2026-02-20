@@ -10,6 +10,11 @@ from .module import MultiHeadAttentionPooling
 
 
 class AccentClassifier(nn.Module):
+    """
+    Predicts accent from encoder hidden states via weighted layer combination, projection,
+    and MHAP.
+    """
+
     def __init__(self, config: WhisperAccentConfig) -> None:
         super().__init__()
         self.config = config
@@ -65,6 +70,8 @@ class AccentClassifier(nn.Module):
 
 
 class WhisperAccentEncoder(WhisperEncoder):
+    """Whisper encoder plus AccentClassifier on all layer hidden states."""
+
     def __init__(self, config: WhisperAccentConfig):
         super().__init__(config)
 
