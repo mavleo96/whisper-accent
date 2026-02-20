@@ -6,7 +6,7 @@ by conditioning the decoder on predicted accent embeddings via **Adaptive Layer 
 Built on top of [OpenAI Whisper](https://github.com/openai/whisper) using [Hugging Face Transformers](https://github.com/huggingface/transformers).
 
 ![Architecture overview](assets/architecture.png)
-*Accent embeddings are predicted from encoder hidden states (layer-weighted fusion + multi-head attention pooling) and used to modulate decoder LayerNorms via AdaLN.*
+*Accent embeddings are learnt independently and accent is predicted from encoder hidden states (layer-weighted fusion + multi-head attention pooling); these embeddings are then used to modulate decoder LayerNorms via Adaptive Layer Normalization*
 
 ---
 
@@ -32,7 +32,6 @@ Key advantages:
   - Projection layer
   - Multi-head attention pooling over time
 - Supports **23 English-accent varieties** (see full list below)
-- Two model modes: `whisper_accent` (conditioned) vs `whisper` (baseline with standard LayerNorm)
 - Evaluation reports **WER overall + per accent** and **accent classification accuracy**
 - Ready multi-GPU training with Accelerate + evaluation scripts
 
