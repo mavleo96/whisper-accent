@@ -27,9 +27,10 @@ class DatasetArguments:
 @dataclass
 class WhisperAccentTrainingArguments(Seq2SeqTrainingArguments):
     learning_rate: float = 5e-5
-    embedding_learning_rate: float = 1e-4
-    accent_classifier_learning_rate: float = 5e-5
+    embedding_learning_rate: float = 5e-4
+    accent_classifier_learning_rate: float = 1e-3
     lambda_accent: float = 1.0
+    max_grad_norm: float = 5.0
     report_to: None | str | list[str] = field(
         default="none",
         metadata={"help": "The list of integrations to report logs to.", "nargs": "+"},
