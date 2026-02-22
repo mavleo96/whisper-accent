@@ -132,3 +132,8 @@ whisper-accent/
 Model weights: inherit from original Whisper (Apache 2.0)
 
 ---
+
+NOTES:
+small:
+accent head only: Number of parameters: 263,442,852; trainable: 466,212; non-trainable: 262,976,640; percentage trainable: 0.18%
+decoder only: Number of parameters: 263,442,852; trainable: 21,242,496; non-trainable: 242,200,356; percentage trainable: 8.06%

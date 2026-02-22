@@ -18,5 +18,6 @@ class WhisperAccentSeq2SeqModelOutput(Seq2SeqModelOutput):
 
 @dataclass
 class WhisperAccentSeq2SeqLMOutput(Seq2SeqLMOutput):
+    ce_loss: torch.Tensor | None = None
     accent_loss: torch.Tensor | None = None
     accent_logits: torch.Tensor | None = None

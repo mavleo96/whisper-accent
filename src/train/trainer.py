@@ -60,10 +60,10 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
                 "params": [
                     p
                     for n, p in model.named_parameters()
-                    if p.requires_grad and not ("embed_accents" in n or "accent_classifier" in n)
+                    if p.requires_grad and "embed_accents" not in n
                 ],
                 "lr": self.args.learning_rate,
-                "weight_decay": 0.0,  # No weight decay for layer norm weights; they are zero-init
+                "weight_decay": self.args.weight_decay,
             },
             {
                 "params": [
@@ -73,15 +73,6 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
                 ],
                 "lr": self.args.embedding_learning_rate,
                 "weight_decay": 0.0,
-            },
-            {
-                "params": [
-                    p
-                    for n, p in model.named_parameters()
-                    if p.requires_grad and "accent_classifier" in n
-                ],
-                "lr": self.args.accent_classifier_learning_rate,
-                "weight_decay": self.args.weight_decay,
             },
         ]
         optimizer_cls, optimizer_kwargs = self.get_optimizer_cls_and_kwargs(self.args, model)
@@ -102,32 +93,26 @@ class WhisperAccentTrainer(Seq2SeqTrainer):
         if self.optimizer is not None and not inside_eval_loop:
             lr_main = self.optimizer.param_groups[0]["lr"]
             logs["learning_rate"] = lr_main.item() if torch.is_tensor(lr_main) else lr_main
-            if len(self.optimizer.param_groups) > 1:
+            if len(self.optimizer.param_groups) > 1 and self.optimizer.param_groups[1]["params"]:
                 lr_embed = self.optimizer.param_groups[1]["lr"]
-                lr_accent_classifier = self.optimizer.param_groups[2]["lr"]
                 logs["embedding_learning_rate"] = (
                     lr_embed.item() if torch.is_tensor(lr_embed) else lr_embed
                 )
-                logs["accent_classifier_learning_rate"] = (
-                    lr_accent_classifier.item()
-                    if torch.is_tensor(lr_accent_classifier)
-                    else lr_accent_classifier
-                )
         super().log(logs, start_time)
 
-    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
-        outputs = model(**inputs)
-        if self.accelerator.unwrap_model(model).config.model_type == "whisper":
-            loss = outputs.loss
-        else:
-            transcription_loss = outputs.loss
-            accent_loss = outputs.accent_loss
-            loss = transcription_loss + self.args.lambda_accent * accent_loss
-
-        if self.args.average_tokens_across_devices and num_items_in_batch is not None:
-            loss *= self.accelerator.num_processes if self.args.n_gpu <= 1 else self.args.n_gpu
-
-        return (loss, outputs) if return_outputs else loss
+    # def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+    #     outputs = model(**inputs)
+    #     if self.accelerator.unwrap_model(model).config.model_type == "whisper":
+    #         loss = outputs.loss
+    #     else:
+    #         transcription_loss = outputs.loss
+    #         accent_loss = outputs.accent_loss
+    #         loss = transcription_loss + self.args.lambda_accent * accent_loss
+    #
+    #     if self.args.average_tokens_across_devices and num_items_in_batch is not None:
+    #         loss *= self.accelerator.num_processes if self.args.n_gpu <= 1 else self.args.n_gpu
+    #
+    #     return (loss, outputs) if return_outputs else loss
 
     def compute_metrics(self, eval_pred, compute_result=True):
         predictions = eval_pred.predictions

@@ -1,12 +1,9 @@
 from dataclasses import dataclass, field
 
 import torch.nn as nn
-from transformers import Seq2SeqTrainingArguments, WhisperForConditionalGeneration
+from transformers import AutoModelForSpeechSeq2Seq, Seq2SeqTrainingArguments
 
-from ..model import (
-    WhisperAccentConfig,
-    WhisperAccentForConditionalGeneration,
-)
+from ..model import WhisperAccentConfig, WhisperAccentForConditionalGeneration
 from ..model.module import AdaptiveLayerNorm
 
 
@@ -14,7 +11,10 @@ from ..model.module import AdaptiveLayerNorm
 class ModelArguments:
     model_type: str = field(metadata={"choices": ["whisper_accent", "whisper"]})
     base_model_name_or_path: str
+    base_openai_model_name: str
     is_multilingual: bool
+    lambda_ce: float = 1.0
+    lambda_accent: float = 1.0
 
 
 @dataclass
@@ -26,10 +26,9 @@ class DatasetArguments:
 
 @dataclass
 class WhisperAccentTrainingArguments(Seq2SeqTrainingArguments):
+    train_mode: str = field(default="decoder", metadata={"choices": ["accent_head", "decoder"]})
     learning_rate: float = 5e-5
     embedding_learning_rate: float = 5e-4
-    accent_classifier_learning_rate: float = 1e-3
-    lambda_accent: float = 1.0
     max_grad_norm: float = 5.0
     report_to: None | str | list[str] = field(
         default="none",
@@ -65,9 +64,7 @@ def init_adaln_weights(model, state_dict):
 
 def model_init(model_args):
     # Load pretrained whisper model
-    pretrained_model = WhisperForConditionalGeneration.from_pretrained(
-        model_args.base_model_name_or_path
-    )
+    pretrained_model = AutoModelForSpeechSeq2Seq.from_pretrained(model_args.base_model_name_or_path)
     state_dict = pretrained_model.state_dict()
 
     # Load whisper weights into whisper_accent model
@@ -76,13 +73,16 @@ def model_init(model_args):
     missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
 
     # Initialize adaptive layer and accent embeddings
-    init_adaln_weights(model, state_dict)
-    nn.init.normal_(model.get_accent_embeddings().weight, mean=0.0, std=0.02)
+    if pretrained_model.config.model_type == "whisper":
+        init_adaln_weights(model, state_dict)
+        nn.init.normal_(model.get_accent_embeddings().weight, mean=0.0, std=0.02)
 
     # Update model config and generation config
     model.config.architectures = [model.__class__.__name__]
     model.config.model_type = "whisper_accent"
-    model.config.base_model = model_args.base_model_name_or_path
+    model.config.base_model = model_args.base_openai_model_name
+    model.config.lambda_ce = model_args.lambda_ce
+    model.config.lambda_accent = model_args.lambda_accent
     model.generation_config = pretrained_model.generation_config
 
     # # Update bos token id; https://github.com/huggingface/transformers/issues/24342

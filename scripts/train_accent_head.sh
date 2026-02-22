@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # Model and Dataset Arguments
-export MODEL_NAME="whisper-accent-small.en"
+export MODEL_NAME="whisper-accent-small.en-accent-head-only"
 export MODEL_TYPE="whisper_accent"
 export BASE_MODEL_NAME="openai/whisper-small.en"
+export BASE_OPENAI_MODEL_NAME="openai/whisper-small.en"
 export IS_MULTILINGUAL="False"
 export DATASET_NAME="westbrook/English_Accent_DataSet"
 
@@ -24,7 +25,9 @@ accelerate launch \
     -m src.train \
     --model_type $MODEL_TYPE \
     --base_model_name_or_path $BASE_MODEL_NAME \
+    --base_openai_model_name $BASE_OPENAI_MODEL_NAME \
     --is_multilingual $IS_MULTILINGUAL \
+    --train_mode accent_head \
     --train_data_path $DATASET_NAME \
     --eval_data_path $DATASET_NAME \
     --output_dir $OUTPUT_DIR \
@@ -33,26 +36,26 @@ accelerate launch \
     --gradient_accumulation_steps 4 \
     --gradient_checkpointing True \
     --optim adamw_torch \
-    --learning_rate 5e-5 \
-    --embedding_learning_rate 5e-4 \
-    --accent_classifier_learning_rate 1e-3 \
+    --learning_rate 1e-3 \
+    --embedding_learning_rate 0.0 \
+    --lambda_ce 0.0 \
     --lambda_accent 1.0 \
     --weight_decay 0.01 \
     --lr_scheduler_type linear \
     --warmup_steps 0.05 \
-    --max_steps 4000 \
-    --max_grad_norm 5.0 \
+    --num_train_epochs 2 \
+    --max_grad_norm 1.0 \
     --eval_strategy steps \
     --eval_steps 200 \
     --eval_on_start True \
-    --predict_with_generate True \
+    --predict_with_generate False \
     --logging_first_step True \
     --logging_steps 10 \
     --run_name $RUN_NAME \
     --report_to tensorboard wandb \
     --load_best_model_at_end True \
-    --metric_for_best_model "wer" \
-    --greater_is_better False \
+    --metric_for_best_model "accent_accuracy" \
+    --greater_is_better True \
     --save_strategy steps \
     --save_steps 200 \
     --save_total_limit 100 \

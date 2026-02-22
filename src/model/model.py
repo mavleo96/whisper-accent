@@ -194,12 +194,22 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
         )
         lm_logits = self.proj_out(outputs[0])
 
-        loss = None
-        if labels is not None:
+        ce_loss = None
+        if labels is not None and self.config.lambda_ce > 0.0:
             loss_fct = CrossEntropyLoss()
             # move labels to correct device to enable PP
             labels = labels.to(lm_logits.device)
-            loss = loss_fct(lm_logits.view(-1, self.config.vocab_size), labels.reshape(-1))
+            ce_loss = loss_fct(lm_logits.view(-1, self.config.vocab_size), labels.reshape(-1))
+
+        accent_loss = None
+        if accent_labels is not None and self.config.lambda_accent > 0.0:
+            accent_loss = outputs.accent_loss if return_dict else outputs[-2]
+
+        loss = None
+        if ce_loss is not None or accent_loss is not None:
+            loss = self.config.lambda_ce * (
+                0 if ce_loss is None else ce_loss
+            ) + self.config.lambda_accent * (0 if accent_loss is None else accent_loss)
 
         if not return_dict:
             output = (lm_logits,) + outputs[1:]
@@ -215,7 +225,8 @@ class WhisperAccentForConditionalGeneration(WhisperForConditionalGeneration):
             encoder_last_hidden_state=outputs.encoder_last_hidden_state,
             encoder_hidden_states=outputs.encoder_hidden_states,
             encoder_attentions=outputs.encoder_attentions,
-            accent_loss=outputs.accent_loss,
+            ce_loss=ce_loss,
+            accent_loss=accent_loss,
             accent_logits=outputs.accent_logits,
         )
 
