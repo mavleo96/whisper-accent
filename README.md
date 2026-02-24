@@ -98,20 +98,50 @@ Results include JSON with overall WER, per-accent WER, accent accuracy, and per-
 Training follows a two-stage optimization scheme:
 
 1. Stage 1: **Accent Classifier Training**
-   - Initialization: The model is initialized from a pretrained English Whisper checkpoint (e.g. `openai/whisper-small.en`), and all encoder/decoder weights are kept fixed.
-   - Trainable components:
-     - Accent classification stack: layer-fusion weights over encoder representations, projection layer, multi-head attention pooling, and the final accent classifier.
-   - Learning objective:
-     - The model is optimized solely for accent classification with respect to the ground-truth accent labels (`lambda_ce = 0.0`, `lambda_accent = 1.0`).
+  - Initialization: The model is initialized from a pretrained English Whisper checkpoint (e.g. `openai/whisper-small.en`), and all encoder/decoder weights are kept fixed.
+  - Trainable components:
+    - Accent classification stack: layer-fusion weights over encoder representations, projection layer, multi-head attention pooling, and the final accent classifier.
+  - Learning objective:
+    - The model is optimized solely for accent classification with respect to the ground-truth accent labels (`lambda_ce = 0.0`, `lambda_accent = 1.0`).
 
 2. Stage 2: **Decoder AdaLN + Accent Embeddings Training**
-   - Initialization: The checkpoint obtained from Stage 1 is used as `base_model_name_or_path`.
-   - Trainable components:
-     - Decoder-side AdaLN modulation parameters
-     - Accent embeddings, updated with a dedicated `embedding_learning_rate`
-   - Learning objective:
-     - The model is optimized only for automatic speech recognition using cross-entropy on reference transcripts (`lambda_ce = 1.0`, `lambda_accent = 0.0`).
-     - Ground-truth accent labels are used to condition the decoder while training; Predicted accent labels are used at evaluation time.
+  - Initialization: The checkpoint obtained from Stage 1 is used as `base_model_name_or_path`.
+  - Trainable components:
+    - Decoder-side AdaLN modulation parameters
+    - Accent embeddings, updated with a dedicated `embedding_learning_rate`
+  - Learning objective:
+    - The model is optimized only for automatic speech recognition using cross-entropy on reference transcripts (`lambda_ce = 1.0`, `lambda_accent = 0.0`)
+  - Ground-truth accent labels are used to condition the decoder while training; predicted accent labels are used at evaluation time.
+
+---
+
+## Checkpoints
+
+All checkpoints are hosted on the Hugging Face Hub:
+
+| Model ID                                                                                      | Base Whisper              |
+|-----------------------------------------------------------------------------------------------|---------------------------|
+| [mavleo96/whisper-accent-small.en](https://huggingface.co/mavleo96/whisper-accent-small.en)   | openai/whisper-small.en   |
+| [mavleo96/whisper-accent-medium.en](https://huggingface.co/mavleo96/whisper-accent-medium.en) | openai/whisper-medium.en  |
+
+---
+
+## Results
+
+Evaluation results on `westbrook/English_Accent_DataSet` test split.
+
+| Model                                | Overall WER ↓  | Accent accuracy ↑ |
+|--------------------------------------|---------------:|------------------:|
+| **Whisper Models:**                  |                |                   |
+| openai/whisper-small.en              |          17.6% |          –        |
+| openai/whisper-medium.en             |          17.5% |          –        |
+| openai/whisper-large-v3              |          17.7% |          –        |
+| openai/whisper-large-v3-turbo        |          20.1% |          –        |
+| **Whisper Accent Models:**           |                |                   |
+| mavleo96/whisper-accent-small.en     |  14.1% (+3.5%) |          85.1%    |
+| mavleo96/whisper-accent-medium.en    |  13.4% (+4.1%) |          95.7%    |
+
+The `whisper-accent` models consistently improve WER over size-matched Whisper baselines.
 
 ---
 
