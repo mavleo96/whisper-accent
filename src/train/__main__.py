@@ -12,6 +12,7 @@ from transformers import (
     WhisperProcessor,
 )
 
+from ..model import register_whisper_accent
 from ..model.configuration import ACCENTS
 from .dataset import DataCollatorSpeechSeq2SeqWithPadding, WhisperDataset
 from .train import (
@@ -21,6 +22,13 @@ from .train import (
     model_init,
 )
 from .trainer import WhisperAccentTrainer
+
+register_whisper_accent()
+
+
+def rank0_print(*args, **kwargs):
+    if not dist.is_initialized() or dist.get_rank() == 0:
+        print(*args, **kwargs)
 
 
 def main():
@@ -50,19 +58,28 @@ def main():
     )
     model_args, dataset_args, training_args = parser.parse_args_into_dataclasses()
 
+    # Asserts
+    if model_args.model_type == "whisper":
+        assert training_args.train_mode == "decoder", (
+            "Whisper model can only be trained in decoder mode"
+        )
+    # Note: whisper-accent: no weight decay for layer norm weights; they are zero-initialized.
+    if training_args.train_mode == "decoder":
+        assert training_args.weight_decay == 0.0, "Weight decay must be 0.0 for decoder mode"
+
     # Load model and processor; whisper / whisper_accent models are supported
     logger.info(f"Loading {model_args.model_type} model from {model_args.base_model_name_or_path}")
     if model_args.model_type == "whisper_accent":
-        processor = WhisperProcessor.from_pretrained(model_args.base_model_name_or_path)
+        processor = WhisperProcessor.from_pretrained(model_args.base_openai_model_name)
         model = model_init(model_args)
 
         # Train only ADaLN modulation, accent embeddings, and accent classifier; freeze rest.
         for name, param in model.named_parameters():
-            if "modulation.1.weight" in name:
+            if "modulation.1.weight" in name and training_args.train_mode == "decoder":
                 param.requires_grad = True
-            elif "embed_accents" in name:
+            elif "embed_accents" in name and training_args.train_mode == "decoder":
                 param.requires_grad = True
-            elif "accent_classifier" in name:
+            elif "accent_classifier" in name and training_args.train_mode == "accent_head":
                 param.requires_grad = True
             else:
                 param.requires_grad = False
@@ -91,14 +108,18 @@ def main():
     n_params = sum(p.numel() for p in model.parameters())
     n_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     n_non_trainable_params = sum(p.numel() for p in model.parameters() if not p.requires_grad)
-    logger.info(f"Number of parameters: {n_params}")
-    logger.info(f"Number of trainable parameters: {n_trainable_params}")
-    logger.info(f"Number of non-trainable parameters: {n_non_trainable_params}")
+    trainable_percent = n_trainable_params / n_params * 100
+    rank0_print(
+        f"Number of parameters: {n_params:,}; trainable: {n_trainable_params:,};"
+        f" non-trainable: {n_non_trainable_params:,};"
+        f" percentage trainable: {trainable_percent:.2f}%"
+    )
 
     # Initialize datasets and data collator
     logger.info("Initializing datasets and data collator")
     collator = DataCollatorSpeechSeq2SeqWithPadding(
-        processor, return_accent_labels=model_args.model_type == "whisper_accent"
+        processor,
+        return_accent_labels=model_args.model_type == "whisper_accent",
     )
     train_dataset = WhisperDataset(
         dataset_args.train_data_path,
@@ -136,7 +157,7 @@ def main():
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         processing_class=processor,
-        compute_metrics="all" if model_args.model_type == "whisper_accent" else "wer",
+        compute_metrics=training_args.metric_for_best_model,
     )
 
     trainer.train()

@@ -187,6 +187,7 @@ def save_results(
 def main():
     parser = argparse.ArgumentParser(description="Evaluate Whisper on ASR task")
     parser.add_argument("--model_name", type=str, default="openai/whisper-tiny.en")
+    parser.add_argument("--subfolder", type=str, default=None)
     parser.add_argument("--dataset_name", type=str, default="westbrook/English_Accent_DataSet")
     parser.add_argument("--split", type=str, default="test", choices=["test", "validation"])
     parser.add_argument("--batch_size", type=int, default=16)
@@ -205,11 +206,14 @@ def main():
     torch.set_float32_matmul_precision("high")
 
     logger.info("Loading model: %s", args.model_name)
-    model = AutoModelForSpeechSeq2Seq.from_pretrained(args.model_name)
-    processor = AutoProcessor.from_pretrained(args.model_name)
+    model_kwargs = {}
+    if args.subfolder is not None:
+        model_kwargs["subfolder"] = args.subfolder
+    model = AutoModelForSpeechSeq2Seq.from_pretrained(args.model_name, **model_kwargs)
+    processor = AutoProcessor.from_pretrained(args.model_name, **model_kwargs)
     # Note: hack since tokenizer registration is not working
     if model.config.model_type == "whisper_accent":
-        processor.tokenizer = WhisperTokenizer.from_pretrained(args.model_name)
+        processor.tokenizer = WhisperTokenizer.from_pretrained(args.model_name, **model_kwargs)
     model.to(device).to(dtype)
     model.eval()
 

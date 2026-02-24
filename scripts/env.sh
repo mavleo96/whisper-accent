@@ -1,10 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-conda create -n whisper-accent python=3.12 -y && \
+ENV_NAME="whisper-accent"
+
+conda create -n $ENV_NAME python=3.12 -y && \
 conda init bash && \
 eval "$(conda shell.bash hook)" && \
-conda activate whisper-accent && \
+conda activate $ENV_NAME && \
 pip install -U torch \
  torchaudio \
  torchcodec \

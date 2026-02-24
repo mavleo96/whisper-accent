@@ -4,11 +4,11 @@ export DATASET_NAME="westbrook/English_Accent_DataSet"
 
 MODELS=(
     "openai/whisper-small.en"
-    "mavleo96/whisper-accent-small.en"
     "openai/whisper-medium.en"
-    # "mavleo96/whisper-accent-medium.en"
     "openai/whisper-large-v3"
     "openai/whisper-large-v3-turbo"
+    "mavleo96/whisper-accent-small.en"
+    "mavleo96/whisper-accent-medium.en"
 )
 
 for model in "${MODELS[@]}"; do

@@ -44,6 +44,10 @@ class WhisperAccentConfig(WhisperConfig):
         # Optional class weights for imbalanced accent classification loss.
         self.accent_class_weights = kwargs.pop("accent_class_weights", None)
 
+        # Loss weights
+        self.lambda_ce = kwargs.pop("lambda_ce", 1.0)
+        self.lambda_accent = kwargs.pop("lambda_accent", 1.0)
+
         super().__init__(**kwargs)
 
 
