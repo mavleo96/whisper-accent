@@ -1,7 +1,7 @@
 # Whisper Accent — Accent-Aware English Speech Recognition
 
 **Make Whisper better at transcribing diverse English accents**
-by conditioning the decoder on predicted accent embeddings via **Adaptive Layer Normalization (AdaLN)**.
+by conditioning the decoder on learnt accent embeddings via **Adaptive Layer Normalization (AdaLN)**.
 
 Built on top of [OpenAI Whisper](https://github.com/openai/whisper) using [Hugging Face Transformers](https://github.com/huggingface/transformers).
 
