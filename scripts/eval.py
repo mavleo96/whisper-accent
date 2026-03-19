@@ -11,14 +11,14 @@ from functools import partial
 import evaluate
 import numpy as np
 import torch
-from datasets import Audio, Value, load_dataset
+from datasets import Audio, load_dataset
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, WhisperTokenizer
 
 sys.path.insert(0, os.getcwd())
 
-from src.constants import SAMPLING_RATE, WESTBROOK_DATASET_ACCENT_MAP
+from src.constants import SAMPLING_RATE
 from src.model import register_whisper_accent
 from src.model.configuration import ACCENTS
 
@@ -43,7 +43,7 @@ def collate_fn(batch):
     }
 
 
-def preprocess(item, processor):
+def preprocess(item, processor, accent_id2str):
     input_values = processor.feature_extractor(
         item["audio"]["array"],
         sampling_rate=SAMPLING_RATE,
@@ -56,7 +56,7 @@ def preprocess(item, processor):
         "attention_mask": input_values.attention_mask[0],
         "raw_target": raw_text,
         "target": processor.tokenizer.normalize(raw_text),
-        "accent": ACCENTS[item["accent"]],  # dataset accent is label string
+        "accent": ACCENTS[accent_id2str(item["accent"]).lower()],  # dataset accent is label string
     }
 
 
@@ -226,9 +226,10 @@ def main():
     logger.info("Loading dataset: %s split=%s", args.dataset_name, args.split)
     dataset = load_dataset(args.dataset_name, split=args.split)
     dataset = dataset.cast_column("audio", Audio(sampling_rate=SAMPLING_RATE))
-    dataset = dataset.cast_column("accent", Value("string"))
-    dataset = dataset.map(lambda x: {"accent": WESTBROOK_DATASET_ACCENT_MAP[int(x["accent"])]})
-    dataset = dataset.map(partial(preprocess, processor=processor), desc="Preprocessing")
+    accent_id2str = dataset.features["accent"].int2str
+    dataset = dataset.map(
+        partial(preprocess, processor=processor, accent_id2str=accent_id2str), desc="Preprocessing"
+    )
 
     dataloader = DataLoader(
         dataset,

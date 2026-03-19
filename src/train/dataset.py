@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import torch
-from datasets import Audio, Value, load_dataset
+from datasets import Audio, load_dataset
 from torch.utils.data import Dataset
 from transformers import WhisperProcessor
 
@@ -12,7 +12,6 @@ from ..constants import (
     IGNORE_INDEX,
     MAX_LENGTH,
     SAMPLING_RATE,
-    WESTBROOK_DATASET_ACCENT_MAP,
 )
 from ..model.configuration import ACCENTS
 
@@ -37,10 +36,9 @@ class WhisperDataset(Dataset):
         # Load and preprocess data
         self.raw_dataset = load_dataset(data_path, split=split, num_proc=num_proc)
         self.raw_dataset = self.raw_dataset.cast_column("audio", Audio(sampling_rate=SAMPLING_RATE))
-        self.raw_dataset = self.raw_dataset.cast_column("accent", Value("string"))
-        self.raw_dataset = self.raw_dataset.map(
-            lambda x: {"accent": WESTBROOK_DATASET_ACCENT_MAP[int(x["accent"])]}
-        )
+
+        # Accent id to string mapping
+        self.accent_id2str = self.raw_dataset.features["accent"].int2str
 
         def is_valid_audio(item):
             try:
@@ -101,11 +99,14 @@ class WhisperDataset(Dataset):
         if len(labels) < MAX_LENGTH:
             labels.append(self.eos_token_id)
 
+        # Accent label
+        accent_label = self.accent_id2str(item["accent"]).lower()
+
         return {
             "labels": labels,
             "input_features": input_features,
             "attention_mask": attention_mask,
-            "accent_id": ACCENTS[item["accent"]],
+            "accent_id": ACCENTS[accent_label],
         }
 
     def get_prefix_tokens(self, item):
