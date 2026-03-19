@@ -29,9 +29,9 @@ def visualize_embedding_similarity(embeddings, labels, title, ax):
 def visualize_umap_embeddings(embeddings, labels, title, ax, **kwargs):
     """Reduce embeddings to 2D with UMAP (cosine) and scatter-plot with text labels."""
     reducer = umap.UMAP(
-        n_neighbors=kwargs.get("n_neighbors", 5),
+        n_neighbors=kwargs.get("n_neighbors", 3),
         n_components=2,
-        min_dist=kwargs.get("min_dist", 0.0),
+        min_dist=kwargs.get("min_dist", 0.2),
         metric="cosine",
         random_state=42,
         n_epochs=500,
