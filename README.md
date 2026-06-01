@@ -22,13 +22,13 @@ This project demonstrates how to lightweight-condition a frozen Whisper model on
 ## Features
 
 - Extends Whisper with per-accent conditioning via AdaLN in every decoder layer where the weights are trained with zero-initialization while the bias is initialized to pretrained LayerNorm gamma and beta values and frozen.
-- Accent embeddings learnt for each accent independently and used to condition the decoder hidden states.
+- Accent embeddings learnt for each accent independently and used to modulate decoder LayerNorms via AdaLN.
 - Accents predicted from encoder hidden states via a classifier head:
   - Learnable weighted sum across all layers + input embeddings
   - Projection layer
   - Multi-head attention pooling over time
-- Encoder & decoder remain completely frozen preserving the original generalization capability
-- Only <10% of parameters are trainable (AdaLN modulation weights, accent embeddings, accent classifier)
+- Encoder & decoder remain completely frozen throughout training
+- Only <10% of parameters are trained (AdaLN modulation weights, accent embeddings, accent classifier)
 
 **Supported accents**:
 
