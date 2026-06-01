@@ -22,7 +22,7 @@ accelerate launch \
     --num_machines 1 \
     --mixed_precision fp16 \
     --gpu_ids 0,1 \
-    -m src.train \
+    -m whisper_accent.train \
     --model_type $MODEL_TYPE \
     --base_model_name_or_path $BASE_MODEL_NAME \
     --base_openai_model_name $BASE_OPENAI_MODEL_NAME \

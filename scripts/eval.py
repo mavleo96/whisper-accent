@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import random
-import sys
 from functools import partial
 
 import evaluate
@@ -16,11 +15,9 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, WhisperTokenizer
 
-sys.path.insert(0, os.getcwd())
-
-from src.constants import SAMPLING_RATE
-from src.model import register_whisper_accent
-from src.model.configuration import ACCENTS
+from whisper_accent.constants import SAMPLING_RATE
+from whisper_accent.model import register_whisper_accent
+from whisper_accent.model.configuration import ACCENTS
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

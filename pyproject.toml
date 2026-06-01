@@ -1,3 +1,15 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "whisper-accent"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.setuptools.packages.find]
+include = ["whisper_accent*"]
+
 [tool.ruff]
 exclude = [
     "notebooks",
@@ -52,4 +64,4 @@ docstring-code-format = true
 docstring-code-line-length = "dynamic"
 
 [tool.ruff.lint.isort]
-known-first-party = ["src"]
+known-first-party = ["whisper_accent"]

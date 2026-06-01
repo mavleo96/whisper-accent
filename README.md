@@ -44,9 +44,13 @@ This project demonstrates how to lightweight-condition a frozen Whisper model on
 ### Install
 
 ```bash
-# Recommended: use conda
+# Recommended: restore from snapshot
 conda env create -f env.yml
 conda activate whisper-accent
+pip install -e .
+
+# Or rebuild from scratch:
+# bash scripts/env.sh && conda activate whisper-accent
 
 # Install pre-commit hooks (optional but recommended)
 pre-commit install
@@ -149,9 +153,10 @@ The `whisper-accent` models consistently improve WER over size-matched Whisper b
 
 ```
 whisper-accent/
-├── src/
+├── whisper_accent/
 │   ├── model/               # WhisperAccentModel, AccentClassifier, AdaLN layers
 │   ├── train/               # Dataset, data collator, custom Trainer
+│   ├── inference/           # load_model, run_inference
 │   ├── utils/
 │   └── constants.py
 ├── scripts/
