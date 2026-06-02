@@ -4,7 +4,7 @@ services:
       context: ..
       dockerfile: serve/backend/Dockerfile
     environment:
-      MODEL_ID: ${MODEL_ID:-mavleo96/whisper-accent-small.en}
+      MODEL_ID: ${MODEL_ID:-mavleo96/whisper-accent-medium.en}
     ports:
       - "8000:8000"
     deploy:

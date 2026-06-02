@@ -21,6 +21,6 @@ RUN pip install --no-cache-dir -e .
 
 COPY serve/backend/main.py .
 
-ENV MODEL_ID="mavleo96/whisper-accent-small.en"
+ENV MODEL_ID="mavleo96/whisper-accent-medium.en"
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

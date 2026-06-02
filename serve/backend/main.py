@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import torchaudio
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from whisper_accent.constants import SAMPLING_RATE
@@ -21,7 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logging.getLogger("transformers").setLevel(logging.WARNING)
 
-MODEL_ID = os.environ.get("MODEL_ID", "mavleo96/whisper-accent-small.en")
+MODEL_ID = os.environ.get("MODEL_ID", "mavleo96/whisper-accent-medium.en")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
 
@@ -71,20 +72,30 @@ def _load_audio(audio_bytes: bytes) -> np.ndarray:
     return waveform.squeeze(0).numpy()
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health")
 def health():
-    return HealthResponse(
-        status="ok" if _state["ready"] else "loading",
-        model_loaded=_state["ready"],
-        model_id=MODEL_ID,
-        device=DEVICE,
-        error=_state.get("error"),
+    if _state["ready"]:
+        status, code = "ok", 200
+    elif _state.get("error"):
+        status, code = "error", 503
+    else:
+        status, code = "loading", 503
+    return JSONResponse(
+        status_code=code,
+        content=HealthResponse(
+            status=status,
+            model_loaded=_state["ready"],
+            model_id=MODEL_ID,
+            device=DEVICE,
+            error=_state.get("error"),
+        ).model_dump(),
     )
 
 
 @app.post("/transcribe", response_model=TranscribeResponse)
 async def transcribe(audio: Annotated[UploadFile, File()]):
-    if not _state["ready"]:
+    model, processor = _state["model"], _state["processor"]
+    if not _state["ready"] or model is None or processor is None:
         raise HTTPException(status_code=503, detail="Model is still loading.")
 
     audio_bytes = await audio.read()
@@ -95,8 +106,22 @@ async def transcribe(audio: Annotated[UploadFile, File()]):
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Could not decode audio: {exc}") from exc
 
+    if len(audio_array) == 0:
+        raise HTTPException(status_code=422, detail="Audio contains no samples.")
+
+    duration = len(audio_array) / SAMPLING_RATE
+    rms = float(np.linalg.norm(audio_array) / np.sqrt(len(audio_array)))
+    logger.info(
+        "Audio decoded: samples=%d  duration=%.2fs  min=%.4f  max=%.4f  rms=%.4f",
+        len(audio_array),
+        duration,
+        float(audio_array.min()),
+        float(audio_array.max()),
+        rms,
+    )
+
     try:
-        result = run_inference([audio_array], _state["model"], _state["processor"])[0]
+        result = run_inference([audio_array], model, processor)[0]
     except Exception as exc:
         logger.exception("Inference failed: %s", exc)
         raise HTTPException(status_code=500, detail=f"Inference error: {exc}") from exc

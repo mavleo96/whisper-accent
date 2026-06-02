@@ -4,18 +4,18 @@
 
 ```bash
 cd serve
-docker-compose up --build
+docker compose up --build
 ```
 
-Override the model (defaults to `mavleo96/whisper-accent-small.en`):
+Override the model (defaults to `mavleo96/whisper-accent-medium.en`):
 
 ```bash
-MODEL_ID=mavleo96/whisper-accent-medium.en docker-compose up --build
+MODEL_ID=mavleo96/whisper-accent-medium.en docker compose up --build
 ```
 
 The frontend will not start until the backend healthcheck passes (allow ~2 minutes for model download on first run).
 
-The backend image is built on `nvidia/cuda` and requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) on the host. On CPU-only machines, swap the base image in `backend/Dockerfile` to `python:3.12-slim` and remove the `deploy` block from `docker-compose.yml`.
+The backend image is built on `nvidia/cuda` and requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) on the host. On CPU-only machines, swap the base image in `backend/Dockerfile` to `python:3.12-slim` and remove the `deploy` block from `docker compose.yml`.
 
 ---
 
@@ -33,7 +33,7 @@ curl http://localhost:8000/health
 {
   "status": "ok",
   "model_loaded": true,
-  "model_id": "mavleo96/whisper-accent-small.en",
+  "model_id": "mavleo96/whisper-accent-medium.en",
   "device": "cpu",
   "error": null
 }
@@ -78,4 +78,4 @@ Read-only ReDoc UI — cleaner layout, good for sharing.
 | backend  | 8000 | FastAPI inference server (internal)|
 | frontend | 7860 | Gradio UI (public)                 |
 
-The backend port is mapped to the host for development. In production, remove the `ports` entry for `backend` in `docker-compose.yml` to keep it internal only.
+The backend port is mapped to the host for development. In production, remove the `ports` entry for `backend` in `docker compose.yml` to keep it internal only.

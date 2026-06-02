@@ -19,18 +19,16 @@ BACKEND_TIMEOUT = 60
 MAX_SECONDS = 30
 
 
-def transcribe(audio):
-    if audio is None:
-        return "", "—"
-
+def _prepare_wav(audio) -> io.BytesIO:
     sample_rate, audio_array = audio
 
     # Downmix to mono, convert to float32 in [-1, 1]
+    original_dtype = audio_array.dtype
     if audio_array.ndim == 2:
         audio_array = audio_array.mean(axis=-1)
     audio_float = audio_array.astype(np.float32)
-    if np.abs(audio_float).max() > 1.0:
-        audio_float /= 32768.0
+    if np.issubdtype(original_dtype, np.integer):
+        audio_float /= float(1 << (original_dtype.itemsize * 8 - 1))
 
     # Clip to 30 seconds
     max_samples = MAX_SECONDS * sample_rate
@@ -38,34 +36,61 @@ def transcribe(audio):
         logger.info("Clipping audio from %ds to %ds.", len(audio_float) // sample_rate, MAX_SECONDS)
         audio_float = audio_float[:max_samples]
 
-    # Encode as WAV
+    # Encode as int16 WAV — standard format, torchaudio handles it on all backends
     audio_int16 = (np.clip(audio_float, -1.0, 1.0) * 32767).astype(np.int16)
     buf = io.BytesIO()
     wavfile.write(buf, sample_rate, audio_int16)
     buf.seek(0)
+    return buf
+
+
+def transcribe(audio):
+    if audio is None:
+        yield "", "—", "No audio recorded.", gr.skip()
+        return
+
+    # Copy before the first yield: Gradio may recycle the widget's numpy buffer
+    # when the generator suspends, which would flatten subsequent playback.
+    audio = (audio[0], audio[1].copy())
+
+    yield "", "—", "Preparing audio…", gr.skip()
+
+    try:
+        buf = _prepare_wav(audio)
+    except Exception as exc:
+        yield "", "—", f"Audio error: {exc}", audio
+        return
+
+    yield "", "—", "Sending to backend…", gr.skip()
 
     try:
         resp = requests.post(
             f"{BACKEND_URL}/transcribe",
-            files={"audio": ("audio.wav", buf, "audio/wav")},
+            files={"audio": ("audio.wav", buf, "audio/wav")},  # sample rate encoded in WAV header
             timeout=BACKEND_TIMEOUT,
         )
         resp.raise_for_status()
         data = resp.json()
-        return data["transcript"], data["accent"]
+        yield data["transcript"], data["accent"], "Done.", audio
     except requests.exceptions.ConnectionError:
-        return "", "Backend unavailable"
+        yield "", "—", "Error: backend unavailable.", audio
     except requests.exceptions.Timeout:
-        return "", "Backend timeout"
+        yield "", "—", f"Error: backend timed out after {BACKEND_TIMEOUT}s.", audio
+    except requests.exceptions.HTTPError as exc:
+        try:
+            detail = exc.response.json().get("detail", str(exc))
+        except Exception:
+            detail = str(exc)
+        yield "", "—", f"Error: {detail}", audio
     except Exception as exc:
         logger.warning("Backend call failed: %s", exc)
-        return "", f"Error: {exc}"
+        yield "", "—", f"Error: {exc}", audio
 
 
 with gr.Blocks(title="Whisper Accent") as demo:
     gr.Markdown(
         "## Whisper Accent\n"
-        "Record up to 30 seconds of speech, then click **Transcribe**. "
+        "Record your speech, then click **Transcribe**. "
         "Your accent is detected automatically and used to condition the decoder."
     )
 
@@ -82,6 +107,8 @@ with gr.Blocks(title="Whisper Accent") as demo:
         interactive=False,
     )
 
+    status_output = gr.Textbox(label="Status", value="", interactive=False)
+
     with gr.Row():
         submit_btn = gr.Button("Transcribe", variant="primary")
         clear_btn = gr.Button("Clear", variant="secondary")
@@ -89,12 +116,12 @@ with gr.Blocks(title="Whisper Accent") as demo:
     submit_btn.click(
         fn=transcribe,
         inputs=[audio_input],
-        outputs=[transcript_output, accent_output],
+        outputs=[transcript_output, accent_output, status_output, audio_input],
     )
     clear_btn.click(
-        fn=lambda: (None, "", "—"),
+        fn=lambda: (None, "", "—", ""),
         inputs=[],
-        outputs=[audio_input, transcript_output, accent_output],
+        outputs=[audio_input, transcript_output, accent_output, status_output],
     )
 
     gr.Markdown(
