@@ -159,6 +159,7 @@ whisper-accent/
 │   ├── inference/           # load_model, run_inference
 │   ├── utils/
 │   └── constants.py
+├── serve/                   # Docker serving stack — see serve/API.md
 ├── scripts/
 │   ├── train_accent_head.sh # Launch accent classifier training with accelerate config
 │   ├── train_decoder.sh     # Launch decoder AdaLN + accent embeddings training with accelerate config
@@ -186,6 +187,18 @@ whisper-accent/
     - `embedding_learning_rate`: separate learning rate for the accent embeddings (5e-4 used for small and medium models).
     - `weight_decay = 0.0`: weight decay is disabled since the decoder AdaLN layers are already zero-initialized.
 - Custom datasets: Any dataset with `audio`, `raw_text`, and `accent` fields can be employed, provided that an appropriate accent-label mapping is defined in the data pipeline.
+
+---
+
+## Deployment
+
+A Docker-based serving stack (FastAPI backend + Gradio frontend) lives in `serve/`. See [serve/API.md](serve/API.md) for endpoint documentation and usage.
+
+```bash
+cd serve && docker compose up --build
+```
+
+**Note:** microphone access requires a secure context. The frontend launches with Gradio's `share=True`, so a public `https://*.gradio.live` link is printed in the container logs — use it for microphone access from any machine. Alternatively, access via `http://localhost:7860` using SSH port-forwarding (`ssh -L 7860:localhost:7860 <host>`), or serve over HTTPS.
 
 ---
 

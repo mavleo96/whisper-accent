@@ -4,11 +4,8 @@ from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, WhisperTokeni
 
 from ..constants import SAMPLING_RATE
 from ..model import register_whisper_accent
-from ..model.configuration import ACCENTS
 
 register_whisper_accent()
-
-ACCENT_MAP: dict[int, str] = {v: k for k, v in ACCENTS.items()}
 
 
 def load_model(model_id: str, device: str, dtype: torch.dtype, **kwargs):
@@ -44,14 +41,17 @@ def run_inference(
     feats = inputs.input_features.to(device).to(dtype)
     mask = inputs.attention_mask.to(device)
 
+    accent_map: dict[int, str] = {v: k for k, v in model.config.accent_to_id.items()}
+
     with torch.no_grad():
-        pred_ids = model.generate(feats, attention_mask=mask)
+        encoder_outputs = model.model.encoder(feats, attention_mask=mask, return_dict=True)
+        accent_ids = encoder_outputs.accent_logits.argmax(dim=-1).tolist()
+        accent_predictions = [accent_map.get(aid, "Unknown") for aid in accent_ids]
+
+        pred_ids = model.generate(feats, attention_mask=mask, encoder_outputs=encoder_outputs)
         raw_predictions = [
             t.strip() for t in processor.batch_decode(pred_ids, skip_special_tokens=True)
         ]
-
-        accent_ids = model.predict_accent(feats, mask).tolist()
-        accent_predictions = [ACCENT_MAP.get(aid, "Unknown") for aid in accent_ids]
 
     return [
         {
