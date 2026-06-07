@@ -194,6 +194,12 @@ whisper-accent/
 
 A Docker-based serving stack (FastAPI backend + Gradio frontend) lives in `serve/`. See [serve/API.md](serve/API.md) for endpoint documentation and usage.
 
+```bash
+cd serve && docker compose up --build
+```
+
+**Note:** microphone access requires a secure context. The frontend launches with Gradio's `share=True`, so a public `https://*.gradio.live` link is printed in the container logs — use it for microphone access from any machine. Alternatively, access via `http://localhost:7860` using SSH port-forwarding (`ssh -L 7860:localhost:7860 <host>`), or serve over HTTPS.
+
 ---
 
 ## License

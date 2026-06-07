@@ -76,7 +76,7 @@ def _load_audio(audio_bytes: bytes) -> np.ndarray:
 def health():
     if _state["ready"]:
         status, code = "ok", 200
-    elif _state.get("error"):
+    elif _state["error"]:
         status, code = "error", 503
     else:
         status, code = "loading", 503
@@ -87,7 +87,7 @@ def health():
             model_loaded=_state["ready"],
             model_id=MODEL_ID,
             device=DEVICE,
-            error=_state.get("error"),
+            error=_state["error"],
         ).model_dump(),
     )
 
@@ -99,7 +99,7 @@ async def transcribe(audio: Annotated[UploadFile, File()]):
         raise HTTPException(status_code=503, detail="Model is still loading.")
 
     audio_bytes = await audio.read()
-    logger.info("Received audio: %d bytes, content_type=%s", len(audio_bytes), audio.content_type)
+    logger.info("Received audio: %d bytes", len(audio_bytes))
 
     try:
         audio_array = _load_audio(audio_bytes)
@@ -111,14 +111,7 @@ async def transcribe(audio: Annotated[UploadFile, File()]):
 
     duration = len(audio_array) / SAMPLING_RATE
     rms = float(np.linalg.norm(audio_array) / np.sqrt(len(audio_array)))
-    logger.info(
-        "Audio decoded: samples=%d  duration=%.2fs  min=%.4f  max=%.4f  rms=%.4f",
-        len(audio_array),
-        duration,
-        float(audio_array.min()),
-        float(audio_array.max()),
-        rms,
-    )
+    logger.info("Audio: %.2fs  rms=%.4f", duration, rms)
 
     try:
         result = run_inference([audio_array], model, processor)[0]

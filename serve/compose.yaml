@@ -6,7 +6,7 @@ services:
     environment:
       MODEL_ID: ${MODEL_ID:-mavleo96/whisper-accent-medium.en}
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     deploy:
       resources:
         reservations:
@@ -28,7 +28,7 @@ services:
     environment:
       BACKEND_URL: http://backend:8000
     ports:
-      - "7860:7860"
+      - "${FRONTEND_PORT:-7860}:7860"
     depends_on:
       backend:
         condition: service_healthy

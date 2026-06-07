@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Gradio runtime artifacts
+.gradio/
+
 # C extensions
 *.so
 

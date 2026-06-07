@@ -2,14 +2,11 @@ FROM nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.12 python3.12-dev python3-pip \
+    python3.12 python3-pip ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 RUN ln -sf python3.12 /usr/bin/python && ln -sf pip3 /usr/bin/pip
 
 WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
 
 COPY serve/backend/requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
