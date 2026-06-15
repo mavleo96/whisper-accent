@@ -1,3 +1,4 @@
+import asyncio
 import io
 import logging
 import os
@@ -26,7 +27,15 @@ MODEL_ID = os.environ.get("MODEL_ID", "mavleo96/whisper-accent-medium.en")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
 
-_state: dict = {"model": None, "processor": None, "ready": False, "error": None}
+MAX_AUDIO_SECONDS = 30
+
+_state: dict = {
+    "model": None,
+    "processor": None,
+    "ready": False,
+    "error": None,
+    "lock": asyncio.Lock(),
+}
 
 
 @asynccontextmanager
@@ -36,6 +45,17 @@ async def lifespan(app: FastAPI):
         model, processor = load_model(MODEL_ID, DEVICE, DTYPE)
         _state["model"] = model
         _state["processor"] = processor
+
+        if DEVICE == "cuda":
+            torch.backends.cudnn.benchmark = True
+            model.model.encoder = torch.compile(
+                model.model.encoder, mode="reduce-overhead", fullgraph=False
+            )
+
+        logger.info("Warming up model…")
+        dummy_audio = np.zeros(SAMPLING_RATE * 3, dtype=np.float32)
+        run_inference([dummy_audio], model, processor)
+
         _state["ready"] = True
         logger.info("Model ready.")
     except Exception as exc:
@@ -69,6 +89,10 @@ def _load_audio(audio_bytes: bytes) -> np.ndarray:
         waveform = torchaudio.functional.resample(waveform, sr, SAMPLING_RATE)
     if waveform.shape[0] > 1:
         waveform = waveform.mean(dim=0, keepdim=True)
+
+    if waveform.shape[-1] / SAMPLING_RATE > MAX_AUDIO_SECONDS:
+        raise HTTPException(status_code=422, detail="Audio exceeds 30s limit")
+
     return waveform.squeeze(0).numpy()
 
 
@@ -96,28 +120,32 @@ def health():
 async def transcribe(audio: Annotated[UploadFile, File()]):
     model, processor = _state["model"], _state["processor"]
     if not _state["ready"] or model is None or processor is None:
-        raise HTTPException(status_code=503, detail="Model is still loading.")
+        raise HTTPException(status_code=503, detail="Model is still loading")
 
     audio_bytes = await audio.read()
     logger.info("Received audio: %d bytes", len(audio_bytes))
 
     try:
         audio_array = _load_audio(audio_bytes)
+    except HTTPException:
+        raise
     except Exception as exc:
-        raise HTTPException(status_code=422, detail=f"Could not decode audio: {exc}") from exc
+        logger.warning("Could not decode audio: %s", exc)
+        raise HTTPException(status_code=422, detail="Could not decode audio") from exc
 
     if len(audio_array) == 0:
-        raise HTTPException(status_code=422, detail="Audio contains no samples.")
+        raise HTTPException(status_code=422, detail="Audio contains no samples")
 
     duration = len(audio_array) / SAMPLING_RATE
     rms = float(np.linalg.norm(audio_array) / np.sqrt(len(audio_array)))
     logger.info("Audio: %.2fs  rms=%.4f", duration, rms)
 
     try:
-        result = run_inference([audio_array], model, processor)[0]
+        async with _state["lock"]:
+            result = run_inference([audio_array], model, processor)[0]
     except Exception as exc:
         logger.exception("Inference failed: %s", exc)
-        raise HTTPException(status_code=500, detail=f"Inference error: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Inference error") from exc
 
     logger.info(
         "Transcript: %r | Accent: %s", result["raw_prediction"], result["accent_prediction"]

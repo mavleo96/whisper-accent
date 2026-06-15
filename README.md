@@ -80,7 +80,7 @@ Single model:
 
 ```bash
 python scripts/eval.py \
-  --model_name_or_path your/checkpoint-or-hf-name \
+  --model_name your/checkpoint-or-hf-name \
   --dataset_name westbrook/English_Accent_DataSet \
   --split test \
   --batch_size 8 \

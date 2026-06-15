@@ -88,10 +88,18 @@ def accumulate_chunk(chunk, state):
         last_sent = 0
     else:
         _, prev_audio, last_sent = state
+        if len(prev_audio) / sr >= MAX_SECONDS:
+            return gr.skip(), gr.skip(), gr.skip(), gr.skip()
         new_audio = np.concatenate([prev_audio, arr])
 
     new_state = (sr, new_audio, last_sent)
     duration = len(new_audio) / sr
+
+    if duration >= MAX_SECONDS:
+        new_audio = new_audio[: MAX_SECONDS * sr]
+        new_state = (sr, new_audio, last_sent)
+        return new_state, gr.skip(), gr.skip(), "Max recording length reached"
+
     seconds_since_last = duration - last_sent
 
     if duration >= LIVE_MIN_SECONDS and seconds_since_last >= LIVE_INTERVAL_SECONDS:
@@ -99,8 +107,8 @@ def accumulate_chunk(chunk, state):
             transcript, accent = _send_to_backend(sr, new_audio)
             new_state = (sr, new_audio, duration)
             return new_state, transcript, accent, "Live…"
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Live update failed: %s", exc)
 
     return new_state, gr.skip(), gr.skip(), gr.skip()
 

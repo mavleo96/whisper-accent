@@ -9,4 +9,7 @@ COPY serve/frontend/app.py .
 
 ENV BACKEND_URL="http://backend:8000"
 
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
 CMD ["python", "app.py"]

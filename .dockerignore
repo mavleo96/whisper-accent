@@ -1,0 +1,14 @@
+.git
+.github
+notebooks
+assets
+*.ipynb
+.pytest_cache
+.ruff_cache
+.vscode
+.claude
+.gradio
+__pycache__
+*.pyc
+*.egg-info
+test_results.json

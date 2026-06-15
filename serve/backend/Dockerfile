@@ -20,4 +20,7 @@ COPY serve/backend/main.py .
 
 ENV MODEL_ID="mavleo96/whisper-accent-medium.en"
 
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

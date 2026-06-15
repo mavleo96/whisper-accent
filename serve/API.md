@@ -76,6 +76,14 @@ curl -X POST http://localhost:8000/transcribe \
 }
 ```
 
+Audio longer than 30 seconds is rejected with `422`:
+
+```json
+{
+  "detail": "Audio exceeds 30s limit"
+}
+```
+
 ---
 
 ### `GET /docs`
@@ -98,6 +106,14 @@ Tradeoffs of this approach:
 - The displayed transcript can visibly change/"jump" as added context shifts Whisper's earlier predictions.
 
 **Improvement scope:** chunk with a sliding window and overlap-and-merge instead of resending the whole buffer, or move to a model/runtime designed for streaming (e.g. `faster-whisper` with VAD-based chunking, `whisper_streaming`, or a dedicated streaming ASR architecture) and push updates over a websocket instead of polling.
+
+Recordings are capped at 30 seconds (`MAX_SECONDS` in `frontend/app.py`); the frontend stops accumulating and shows "Max recording length reached" once that limit is hit, matching the backend's 30s `/transcribe` limit above.
+
+---
+
+## Concurrency
+
+The backend processes one `/transcribe` request at a time (an `asyncio.Lock` serializes inference on the shared model); concurrent requests queue rather than running in parallel.
 
 ---
 
